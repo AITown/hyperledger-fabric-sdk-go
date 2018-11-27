@@ -9,7 +9,7 @@ import (
 
 	//"github.com/hyperledger/fabric/peer/common"
 
-	"hyperledger-fabric-sdk-go/peerex/utils"
+	"hyperledger-fabric-sdk-go/utils"
 )
 
 const (
@@ -20,14 +20,14 @@ const (
 	peerTLSRootCertFile             = baseAddr + "peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt"
 	peerClientconntimeout           = "30s"
 	peerTLSEnabled                  = true
-	peerTLSClientAuthRequired       = "false"
+	peerTLSClientAuthRequired       = true
 	peerTLSClientKeyFile            = ""
 	peerTLSClientCertFile           = ""
 	peerLocalMspID                  = "Org1MSP"
 	peerTLSCertFile                 = baseAddr + "peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt"
 	peerTLSKeyFile                  = baseAddr + "peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key"
 	peerMspConfigPath               = baseAddr + "peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp"
-	peerBccspSwFileKeyStoreKeyStore = baseAddr + "peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp"
+	peerBccspSwFileKeyStoreKeyStore = baseAddr + "peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp/keystore"
 	peerTLSServerhostOverride       = "peer0.org1.example.com"
 
 	//peerAddress1         = "peer0.org2.example.com:7051"
@@ -42,8 +42,10 @@ const (
 	//ordererEndpoint              = "orderer.example.com:7050"
 	ordererTLS                   = true
 	ordererConnTimeout           = 3 * time.Second
-	ordererTLSClientAuthRequired = false
-	ordererTLSRootCertFile       = baseAddr + "ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+	ordererTLSClientAuthRequired = true
+	ordererTLSRootCertFile       = baseAddr + "ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt"
+	ordererTLSCertFile           = baseAddr + "ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt"
+	ordererTLSKeyFile            = baseAddr + "ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.key"
 	ordererTLSClientKeyFile      = ""
 	ordererTLSClientCertFile     = ""
 	ordererTLSHostnameOverride   = "orderer.example.com"
@@ -66,10 +68,10 @@ func init() {
 	//initEnv()
 }
 func main() {
-	//initEnv()
-	//	querytest()
 	invoketest()
-	//querytest()
+	fmt.Println("========================= query ......==============")
+	time.Sleep(3 * time.Second)
+	querytest()
 
 }
 
@@ -78,7 +80,7 @@ func initEnv() {
 	os.Setenv("CORE_PEER_ADDRESS", peerAddress)
 	os.Setenv("CORE_PEER_CLIENT_CONNTIMEOUT", peerClientconntimeout)
 	os.Setenv("CORE_PEER_TLS_ENABLED", "true")
-	os.Setenv("CORE_PEER_TLS_CLIENTAUTHREQUIRED", peerTLSClientAuthRequired)
+	os.Setenv("CORE_PEER_TLS_CLIENTAUTHREQUIRED", "false")
 	os.Setenv("CORE_PEER_TLS_ROOTCERT_FILE", peerTLSRootCertFile)
 	os.Setenv("CORE_PEER_TLS_CLIENTKEY_FILE", peerTLSClientKeyFile)
 	os.Setenv("CORE_PEER_TLS_CLIENTCERT_FILE", peerTLSClientCertFile)
@@ -104,20 +106,20 @@ func querytest() {
 	r := peerex.NewRpcBuilder()
 	r.Function = "query"
 	r.ChaincodeName = "mycc"
-	r.ChaincodeVersion = "1.0"
+	// r.ChaincodeVersion = "1.0"
 	r.ChannelID = "mychannel"
 
-	r.WaitForEvent = true
+	p := &peerex.OnePeer{}
 
-	p := peerex.OnePeer{}
-
-	p.PeerTLS = peerTLSEnabled
 	p.PeerAddresses = peerAddress
 	p.PeerTLSRootCertFile = peerTLSRootCertFile
+
+	p.PeerTLS = peerTLSEnabled
 	p.PeerTLSHostnameOverride = peerTLSServerhostOverride
+
+	p.PeerTLSClientAuthRequired = peerTLSClientAuthRequired
 	p.PeerTLSKeyFile = peerTLSKeyFile
 	p.PeerTLSCertFile = peerTLSCertFile
-	p.PeerTLSClientAuthRequired = true
 
 	r.Peers = append(r.Peers, p)
 	r.MspID = mspID
@@ -127,62 +129,76 @@ func querytest() {
 	args := []string{"a"}
 	str, e := r.Query("query", args)
 	if e != nil {
-		fmt.Println("result,error:", e)
+		fmt.Println("×××××××××××××××××××××××××××")
+		fmt.Println("query error:", e)
+		fmt.Println("×××××××××××××××××××××××××××")
+		return
 	}
-	fmt.Println("result:", str)
+	fmt.Println("*****************************")
+	fmt.Println("query success,result:", str)
+	fmt.Println("*****************************")
 }
 
 func invoketest() {
 	r := peerex.NewRpcBuilder()
 	r.Function = "invoke"
 	r.ChaincodeName = "mycc"
-	r.ChaincodeVersion = "1.0"
+	// r.ChaincodeVersion = "1.0"
 	r.ChannelID = "mychannel"
 	r.WaitForEvent = true
 
-	p1 := peerex.OnePeer{}
-
-	p1.PeerTLS = peerTLSEnabled
-	p1.PeerAddresses = peerAddress
-	p1.PeerTLSRootCertFile = peerTLSRootCertFile
-	p1.PeerTLSHostnameOverride = peerTLSServerhostOverride
-	p1.PeerTLSKeyFile = peerTLSKeyFile
-	p1.PeerTLSCertFile = peerTLSCertFile
-	p1.PeerTLSClientAuthRequired = true
-
-	p2 := peerex.OnePeer{}
-
-	p2.PeerTLS = peerTLSEnabled
-	p2.PeerAddresses = peerAddress1
-	p2.PeerTLSRootCertFile = peerTLSRootCertFile1
-	p2.PeerTLSHostnameOverride = peerTLSServerhostOverride1
-	p2.PeerTLSKeyFile = peerTLSKeyFile1
-	p2.PeerTLSCertFile = peerTLSCertFile1
-	p2.PeerTLSClientAuthRequired = true
-
-	r.Peers = append(r.Peers, p1, p2)
-
-	// r.PeerTLS = peerTLSEnabled
-	// r.PeerAddresses = []string{peerAddress, peerAddress1}
-	// r.PeerTLSRootCertFile = []string{peerTLSRootCertFile, peerTLSRootCertFile1}
-	// r.PeerTLSHostnameOverride = []string{peerTLSServerhostOverride, peerTLSServerhostOverride1}
 	r.MspID = mspID
 	r.MspType = mspType
 	r.MspConfigPath = mspConfigPath
 
-	r.OrdererTLS = ordererTLS
+	p1 := &peerex.OnePeer{}
+
+	p1.PeerAddresses = peerAddress
+	p1.PeerTLSHostnameOverride = peerTLSServerhostOverride
+
+	p1.PeerTLS = peerTLSEnabled
+	p1.PeerTLSRootCertFile = peerTLSRootCertFile
+
+	p1.PeerTLSClientAuthRequired = peerTLSClientAuthRequired
+	p1.PeerTLSKeyFile = peerTLSKeyFile
+	p1.PeerTLSCertFile = peerTLSCertFile
+
+	p2 := &peerex.OnePeer{}
+
+	p2.PeerAddresses = peerAddress1
+	p2.PeerTLSHostnameOverride = peerTLSServerhostOverride1
+
+	p2.PeerTLS = peerTLSEnabled
+	p2.PeerTLSRootCertFile = peerTLSRootCertFile1
+
+	p2.PeerTLSClientAuthRequired = peerTLSClientAuthRequired
+	p2.PeerTLSKeyFile = peerTLSKeyFile1
+	p2.PeerTLSCertFile = peerTLSCertFile1
+
+	r.Peers = append(r.Peers, p1, p2)
+
 	r.OrdererAddress = ordererEndpoint
 	r.OrdererTLSHostnameOverride = ordererTLSHostnameOverride
 	r.OrdererConnTimeout = ordererConnTimeout
-	r.OrdererTLSClientAuthRequired = ordererTLSClientAuthRequired
+
+	r.OrdererTLS = ordererTLS
 	r.OrdererTLSRootCertFile = ordererTLSRootCertFile
-	r.OrdererTLSClientKeyFile = ordererTLSClientKeyFile
-	r.OrdererTLSClientCertFile = ordererTLSClientCertFile
+
+	r.OrdererTLSClientAuthRequired = ordererTLSClientAuthRequired
+	r.OrdererTLSKeyFile = ordererTLSKeyFile
+	r.OrdererTLSCertFile = ordererTLSCertFile
+	// r.OrdererTLSClientKeyFile = ordererTLSClientKeyFile
+	// r.OrdererTLSClientCertFile = ordererTLSClientCertFile
 
 	args := []string{"a", "b", "1"}
-	txid, e := r.Invoke("invoke", args)
-	if e != nil {
-		fmt.Println("result,error:", e)
+	txid, err := r.Invoke("invoke", args)
+	if err != nil {
+		fmt.Println("×××××××××××××××××××××××××××")
+		fmt.Println("invoke error:", err)
+		fmt.Println("×××××××××××××××××××××××××××")
+		return
 	}
-	fmt.Println("success,txid=:", txid)
+	fmt.Println("*****************************")
+	fmt.Println("invoke success, txid=:", txid)
+	fmt.Println("*****************************")
 }

@@ -3,9 +3,8 @@ package peerex
 import (
 	"context"
 	"fmt"
-	"hyperledger-fabric-sdk-go/peerex/utils"
+	"hyperledger-fabric-sdk-go/utils"
 	"io/ioutil"
-	"time"
 
 	"github.com/hyperledger/fabric/core/comm"
 	ab "github.com/hyperledger/fabric/protos/orderer"
@@ -26,16 +25,6 @@ func (order *OrderEnv) NewordererClientForAddress() (*OrdererClient, error) {
 	}
 	return order.newOrdererClientForClientConfig(clientConfig)
 }
-
-// NewOrdererClientFromEnv creates an instance of an OrdererClient from the
-// global Viper instance
-// func NewOrdererClientFromEnv() (*OrdererClient, error) {
-// 	address, override, clientConfig, err := configFromEnv("orderer")
-// 	if err != nil {
-// 		return nil, errors.WithMessage(err, "failed to load config for OrdererClient")
-// 	}
-// 	return newOrdererClientForClientConfig(address, override, clientConfig)
-// }
 
 func (order *OrderEnv) newOrdererClientForClientConfig(clientConfig comm.ClientConfig) (*OrdererClient, error) {
 	address := order.OrdererAddress
@@ -66,11 +55,8 @@ var countorder = 1
 
 func (order *OrderEnv) GetConfig() (clientConfig comm.ClientConfig, err error) {
 	clientConfig = comm.ClientConfig{}
-	connTimeout := order.OrdererConnTimeout
-	if connTimeout == time.Duration(0) {
-		connTimeout = defaultConnTimeout
-	}
-	clientConfig.Timeout = connTimeout
+
+	clientConfig.Timeout = order.OrdererConnTimeout
 	secOpts := &comm.SecureOptions{
 		UseTLS:            order.OrdererTLS,
 		RequireClientCert: order.OrdererTLSClientAuthRequired,
@@ -102,7 +88,7 @@ func (order *OrderEnv) GetConfig() (clientConfig comm.ClientConfig, err error) {
 	}
 	clientConfig.SecOpts = secOpts
 
-	logger.Debug("orderer GetConfig  第", countorder, "次", order)
+	logger.Debug("orderer GetConfig  第", countorder, "次", order, "connTimeout", order.OrdererConnTimeout)
 	countorder++
 	return
 }

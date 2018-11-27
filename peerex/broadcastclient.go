@@ -26,19 +26,12 @@ func (order *OrderEnv) GetBroadcastClient() (BroadcastClient, error) {
 	var ordererClient *OrdererClient
 	var err error
 
-	// if address != "" {
 	ordererClient, err = order.NewordererClientForAddress()
-	// } else {
-	// 	ordererClient, err = NewOrdererClientFromEnv()
-	// }
+
 	if err != nil {
 		return nil, err
 	}
-	//oc, err := NewOrdererClientFromEnv()
 
-	// if err != nil {
-	// 	return nil, err
-	// }
 	bc, err := ordererClient.Broadcast()
 	if err != nil {
 		return nil, err

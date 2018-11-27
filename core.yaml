@@ -1,6 +1,6 @@
 logging:
   level: debug
-  format: "%{color}%{time:2006-01-02 15:04:05.000} [%{module}] %{shortfile} %{callpath} -> %{level:.4s} %{color:reset} %{message}"
+  format: "%{color}%{time:2006-01-02 15:04:05.000} [%{module}] %{shortfile} -> %{level:.4s} %{color:reset} %{message}"
 peer:
   address: 0.0.0.0:7051
   serverhostoverride: peer0.org1.example.com

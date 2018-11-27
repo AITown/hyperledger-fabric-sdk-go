@@ -2,8 +2,7 @@ package msp
 
 import (
 	"fmt"
-	mspmgmt "hyperledger-fabric-sdk-go/msp/mgmt"
-	"hyperledger-fabric-sdk-go/peerex/utils"
+	"hyperledger-fabric-sdk-go/utils"
 	"os"
 	"path/filepath"
 
@@ -30,9 +29,7 @@ func (m *MspEnv) Verify() error {
 		logger.Warning("MspType is nll use default type : bccsp")
 	}
 	m.MspConfigPath = utils.ConvertToAbsPath(m.MspConfigPath)
-	// if !filepath.IsAbs(m.MspConfigPath) {
-	// 	return errors.New("msp path is not absolute")
-	// }
+
 	return nil
 }
 
@@ -60,7 +57,7 @@ func (m *MspEnv) InitCrypto() (*factory.FactoryOpts, error) {
 		return nil, errors.WithMessage(err, "could not parse YAML config")
 	}
 
-	err = mspmgmt.LoadLocalMspWithType(m.MspConfigPath, bccspConfig, m.MspID, m.MspType)
+	err = LoadLocalMspWithType(m.MspConfigPath, bccspConfig, m.MspID, m.MspType)
 	if err != nil {
 		return nil, errors.WithMessage(err, fmt.Sprintf("error when setting up MSP of type %s from directory %s", m.MspType, m.MspConfigPath))
 	}
@@ -78,6 +75,7 @@ func SetBCCSPKeystorePath() {
 	}
 }
 
+//NewBccspConf 默认，暂时写死，也可以从配置文件中取
 func NewBccspConf() *factory.FactoryOpts {
 	return &factory.FactoryOpts{
 		ProviderName: "SW",

@@ -8,33 +8,22 @@ import (
 	"path/filepath"
 	"time"
 
-	"hyperledger-fabric-sdk-go/msp/localmsp"
-	"hyperledger-fabric-sdk-go/peerex/utils"
-
 	mspex "hyperledger-fabric-sdk-go/msp"
+	"hyperledger-fabric-sdk-go/utils"
 
-	"github.com/golang/protobuf/proto"
-
-	// "github.com/hyperledger/fabric/common/localmsp"
-	"github.com/hyperledger/fabric/common/util"
 	"github.com/hyperledger/fabric/msp"
 	"github.com/hyperledger/fabric/peer/common/api"
 	fcommon "github.com/hyperledger/fabric/protos/common"
-
 	ab "github.com/hyperledger/fabric/protos/orderer"
 	pb "github.com/hyperledger/fabric/protos/peer"
-	fprotoutils "github.com/hyperledger/fabric/protos/utils"
+	protoutils "github.com/hyperledger/fabric/protos/utils"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
 const (
-	escc        = "escc"
-	vscc        = "vscc"
-	errorStatus = 400
+	defaultTimeout = 30 * time.Second
 )
-
-// var localMspType = msp.ProviderTypeToString(msp.FABRIC)
 
 const (
 	//peer
@@ -77,7 +66,7 @@ type ChaincodeFactory struct {
 }
 
 //Verify 检查参数正确性 没有的构建默认值
-func (r *rPCBuilder) Verify(set bool) error {
+func (r *rPCBuilder) Verify(get bool) error {
 	if r.ChannelID == "" {
 		return errors.New("channelID 不能为空")
 	}
@@ -85,12 +74,13 @@ func (r *rPCBuilder) Verify(set bool) error {
 	if r.ChaincodeName == "" {
 		return errors.New("ChaincodeName 不能为空")
 	}
-	//格式:Function :query args:[]string{"a"} 代表查询a的值  如果为空,但如果args的len>1 则默认是invoke  否则是query
+
+	//格式:Function :query args:[]string{"a"} 代表查询a的值  如果为空,根据参数get 赋值
 	if len(r.args) == 0 {
 		return errors.Errorf("%s方法所携带的参数不能为空", r.Function)
 	}
 	if r.Function == "" {
-		if len(r.args) == 1 {
+		if get {
 			r.Function = query
 			logger.Warning("Using default Function:", query)
 		} else {
@@ -98,77 +88,68 @@ func (r *rPCBuilder) Verify(set bool) error {
 			logger.Warning("Using default Function:", invoke)
 		}
 	}
-	if r.ChaincodeVersion == "" {
-		return errors.Errorf("chaincode version is not provided for %s", r.Function)
-	}
 
-	if r.Escc != "" {
-		logger.Infof("Using escc %s", r.Escc)
-	} else {
-		logger.Info("Using default escc")
-		r.Escc = escc
-	}
-
-	if r.Vscc != "" {
-		logger.Infof("Using vscc %s", r.Vscc)
-	} else {
-		logger.Info("Using default vscc")
-		r.Vscc = vscc
-	}
-
-	//add by gjf
 	if r.WaitForEvent == true && r.WaitForEventTimeout == time.Duration(0) {
-		r.WaitForEventTimeout = time.Second * 30
+		r.WaitForEventTimeout = defaultTimeout
 	}
-
-	// if r.PeerClientConnTimeout == time.Duration(0) {
-	// 	r.PeerClientConnTimeout = 30 * time.Second
-	// }
 	if len(r.Peers) == 0 {
 		return errors.New("没有任何peer节点信息")
 	}
-	if !set && len(r.Peers) > 1 {
-		return errors.New("query 目前只支持单节点")
+	if get {
+		if len(r.Peers) > 1 {
+			return errors.New("query 目前只支持单节点")
+		}
+	} else {
+		r.OrderEnv.verify()
 	}
-
 	for _, p := range r.Peers {
-		err := p.verify(set)
+		err := p.verify()
 		if err != nil {
 			return err
 		}
 	}
-	// if len(r.PeerAddresses) == 0 {
-	// 	logger.Info("PeerAddresses is nil")
-	// 	r.PeerAddresses = make([]string, 1)
-	// }
-
 	logger.Debug("检查参数正确性=======down")
 	return nil
 }
-
-func (p *OnePeer) verify(invoke bool) error {
-	if p.PeerTLS {
-		if utils.IsNullOrEmpty(p.PeerTLSRootCertFile) || utils.IsNullOrEmpty(p.PeerTLSHostnameOverride) || utils.IsNullOrEmpty(p.PeerAddresses) {
-			return errors.New("PeerTLSRootCertFile，PeerTLSHostnameOverride ，PeerAddresses 不能为空")
+func (o *OrderEnv) verify() error {
+	if o == nil {
+		return errors.New("orderer 节点配置不能为空")
+	}
+	if utils.IsNullOrEmpty(o.OrdererAddress) || utils.IsNullOrEmpty(o.OrdererTLSHostnameOverride) {
+		return errors.New("OrdererAddress，OrdererTLSHostnameOverride  不能为空")
+	}
+	if o.OrdererTLS {
+		if utils.IsNullOrEmpty(o.OrdererTLSRootCertFile) {
+			return errors.New("OrdererTLSRootCertFile  不能为空")
 		}
 	}
 
+	if o.OrdererConnTimeout == time.Duration(0) {
+		o.OrdererConnTimeout = defaultTimeout
+	}
+
+	logger.Debug("set PeerClientConnTimeout", o.OrdererConnTimeout)
 	return nil
 }
+func (p *OnePeer) verify() error {
+	if p == nil {
+		return errors.New("peer 节点配置不能为空")
+	}
+	if utils.IsNullOrEmpty(p.PeerTLSHostnameOverride) || utils.IsNullOrEmpty(p.PeerAddresses) {
+		return errors.New("PeerTLSHostnameOverride,PeerAddresses 不能为空")
+	}
+	if p.PeerTLS {
+		if utils.IsNullOrEmpty(p.PeerTLSRootCertFile) {
+			return errors.New("PeerTLSRootCertFile 不能为空")
+		}
+	}
+	if p.PeerClientConnTimeout == time.Duration(0) {
+		p.PeerClientConnTimeout = defaultTimeout
+	}
 
-// func verify(m *mspex.MspEnv) error {
-
-// 	if m.MspType == "" {
-// 		//mspType = msp.ProviderTypeToString(msp.FABRIC)
-// 		m.MspType = localMspType
-// 		logger.Warning("MspType is nll use default type : bccsp")
-// 	}
-// 	m.MspConfigPath = utils.ConvertToAbsPath(m.MspConfigPath)
-// 	// if !filepath.IsAbs(m.MspConfigPath) {
-// 	// 	return errors.New("msp path is not absolute")
-// 	// }
-// 	return nil
-// }
+	logger.Debug("set PeerClientConnTimeout", p.PeerClientConnTimeout)
+	return nil
+}
 
 func InitCrypto(m *mspex.MspEnv) error {
 	// var mspMgrConfigDir = common.GetPath(peerMspConfigPath)
@@ -192,14 +173,14 @@ func InitCrypto(m *mspex.MspEnv) error {
 	return err
 }
 
-//InitWithFile InitWithFile
+//InitWithFile InitWithFile  未实现
 func InitWithFile(path string) Handle {
 	// peerpath := filepath.Join(os.Getenv("GOPATH"), "src/hyperledger-fabric-sdk-go")
 	// if err := utils.InitViper("core", "core", "./", peerpath); err != nil {
 	// 	fmt.Println("utils.InitPeerViper faile:", err)
 	// }
 	r := NewRpcBuilder()
-	p := OnePeer{}
+	p := &OnePeer{}
 
 	p.PeerClientConnTimeout = viper.GetDuration(peerClientconntimeout)
 
@@ -230,13 +211,14 @@ func InitWithFile(path string) Handle {
 
 }
 
-//InitConfig 初始化配置变量
+//InitConfig 初始化配置变量 暂时不需要
 func (r *rPCBuilder) InitConfig() {
-	logger.Debug("=====viper.ConfigFileUsed:", filepath.Dir(viper.ConfigFileUsed()))
+	logger.Debug("viper.ConfigFileUsed:", filepath.Dir(viper.ConfigFileUsed()))
 
 	//peer
 	//peerAddress  peerTLSRootCertFile peerTLSServerhostOverride 在invoke时不做变化
 	connttime := viper.GetDuration(peerClientconntimeout)
+
 	// if r.PeerClientConnTimeout != connttime {
 	// 	viper.Set(peerClientconntimeout, r.PeerClientConnTimeout.String())
 	// }
@@ -300,29 +282,16 @@ func (r *rPCBuilder) InitFactory(invoke, isEndorserRequired, isOrdererRequired b
 		// tlsRootCertFiles     = r.PeerTLSRootCertFile
 		// peerAddresses        = r.PeerAddresses
 		// peerhostoverrides    = r.PeerTLSHostnameOverride
-		ordererAddresses = r.OrdererAddress
+		// ordererAddresses = r.OrdererAddress
 		// ordererhostoverrides = r.OrdererTLSHostnameOverride
 	)
 	//背书请求 如果需要跟endorser通信，那么创建endorserClient，参见peerclient.go的NewPeerClientFromEnv函数。
 	if isEndorserRequired {
 
 		for _, peer := range r.Peers {
-			// address := peer.PeerAddresses
-			// rootca := peer.PeerTLSRootCertFile
-			// override := peer.PeerTLSHostnameOverride
-			//多个peer节点
-			// for i, address := range peerAddresses {
-			// 	var tlsRootCertFile string
-			// 	if tlsRootCertFiles != nil {
-			// 		tlsRootCertFile = tlsRootCertFiles[i]
-			// 	}
-			// 	var override string
-			// 	if peerhostoverrides != nil {
-			// 		override = peerhostoverrides[i]
-			// 	}
 			//error getting endorser client for query: endorser client failed to connect to
 			//path: failed to create new connection: context deadline exceeded
-			logger.Debug("common.GetEndorserClientFnc :override:=", peer.PeerTLSHostnameOverride)
+			logger.Debug("common.GetEndorserClientFnc override:", peer.PeerTLSHostnameOverride)
 			endorserClient, err := peer.GetEndorserClient()
 			if err != nil {
 				return nil, errors.WithMessage(err, fmt.Sprintf("error getting endorser client "))
@@ -346,7 +315,8 @@ func (r *rPCBuilder) InitFactory(invoke, isEndorserRequired, isOrdererRequired b
 		return nil, errors.WithMessage(err, "error getting client cerificate")
 	}
 
-	signer, err := GetDefaultSignerFnc(r.MspType)
+	//signer, err := GetDefaultSignerFnc()
+	signer, err := mspex.GetSigningIdentity()
 	if err != nil {
 		return nil, errors.WithMessage(err, "error getting default signer")
 	}
@@ -357,23 +327,23 @@ func (r *rPCBuilder) InitFactory(invoke, isEndorserRequired, isOrdererRequired b
 	// 如果指定了orderer地址，那么直接调用GetBroadcastClientFnc获取BroadcastClient。
 
 	if isOrdererRequired {
-		if len(ordererAddresses) == 0 {
-			if len(endorserClients) == 0 {
-				return nil, errors.New("orderer is required, but no ordering endpoint or endorser client supplied")
-			}
+		// if len(ordererAddresses) == 0 {
+		// 	if len(endorserClients) == 0 {
+		// 		return nil, errors.New("orderer is required, but no ordering endpoint or endorser client supplied")
+		// 	}
 
-			endorserClient := endorserClients[0]
-			orderingEndpoints, err := GetOrdererEndpointOfChainFnc(r.ChannelID, signer, endorserClient)
-			if err != nil {
-				return nil, errors.WithMessage(err, fmt.Sprintf("error getting channel (%s) orderer endpoint", r.ChannelID))
-			}
-			if len(orderingEndpoints) == 0 {
-				return nil, errors.Errorf("no orderer endpoints retrieved for channel %s", r.ChannelID)
-			}
-			logger.Infof("Retrieved channel (%s) orderer endpoint: %s", r.ChannelID, orderingEndpoints[0])
-			// override viper env
-			viper.Set("orderer.address", orderingEndpoints[0])
-		}
+		// 	endorserClient := endorserClients[0]
+		// 	orderingEndpoints, err := GetOrdererEndpointOfChainFnc(r.ChannelID, signer, endorserClient)
+		// 	if err != nil {
+		// 		return nil, errors.WithMessage(err, fmt.Sprintf("error getting channel (%s) orderer endpoint", r.ChannelID))
+		// 	}
+		// 	if len(orderingEndpoints) == 0 {
+		// 		return nil, errors.Errorf("no orderer endpoints retrieved for channel %s", r.ChannelID)
+		// 	}
+		// 	logger.Infof("Retrieved channel (%s) orderer endpoint: %s", r.ChannelID, orderingEndpoints[0])
+		// 	// override viper env
+		// 	viper.Set("orderer.address", orderingEndpoints[0])
+		// }
 		logger.Debug("----开始根据环境变量构建:GetBroadcastClientFnc")
 		broadcastClient, err = r.OrderEnv.GetBroadcastClient()
 
@@ -397,15 +367,6 @@ func (cc *ChaincodeEnv) getChaincodeSpec(args []string) *pb.ChaincodeSpec {
 	spec := &pb.ChaincodeSpec{}
 	funcname := cc.Function
 	input := &pb.ChaincodeInput{}
-	// input.Args = make([][]byte, len(args)+1)
-	// if len(funcname) == 0 {
-	// 	return nil, errors.New("方法名为空")
-	// }
-	// input.Args[0] = []byte(funcname)
-	// for i, x := range args {
-	// 	input.Args[i+1] = []byte(x)
-	// }
-
 	input.Args = append(input.Args, []byte(funcname))
 
 	for _, arg := range args {
@@ -415,154 +376,12 @@ func (cc *ChaincodeEnv) getChaincodeSpec(args []string) *pb.ChaincodeSpec {
 	logger.Debug("ChaincodeSpec input :", input, " funcname:", funcname)
 	var golang = pb.ChaincodeSpec_Type_name[1]
 	spec = &pb.ChaincodeSpec{
-		Type:        pb.ChaincodeSpec_Type(pb.ChaincodeSpec_Type_value[golang]),
-		ChaincodeId: &pb.ChaincodeID{Name: cc.ChaincodeName, Version: cc.ChaincodeVersion},
+		Type: pb.ChaincodeSpec_Type(pb.ChaincodeSpec_Type_value[golang]),
+		// ChaincodeId: &pb.ChaincodeID{Name: cc.ChaincodeName, Version: cc.ChaincodeVersion},
+		ChaincodeId: &pb.ChaincodeID{Name: cc.ChaincodeName},
 		Input:       input,
 	}
 	return spec
-}
-
-// func (cc *ChaincodeEnv) Query(cf *ChaincodeFactory, args []string) (string, error) {
-// 	pb, _, err := cc.handle(cf, false, args)
-// 	if err != nil {
-// 		return "", nil
-// 	}
-// 	return string(pb.Payload), nil
-// }
-
-// func (cc *ChaincodeEnv) Invoke(cf *ChaincodeFactory, args []string) (string, error) {
-// 	_, txid, err := cc.handle(cf, true, args)
-// 	if err != nil {
-// 		return "", nil
-// 	}
-// 	return txid, nil
-// }
-
-// func (cc *ChaincodeEnv) handle(cf *ChaincodeFactory, invoke bool, args []string) (*pb.ProposalResponse, string, error) {
-
-// 	// call with empty txid to ensure production code generates a txid.
-// 	// otherwise, tests can explicitly set their own txid
-// 	txID := ""
-// 	spec := cc.getChaincodeSpec(args)
-
-// 	//proposalResp, _, err := ChaincodeInvokeOrQuery(spec, rpcCommonDate.ChannelID, txID, false, cf.Signer, cf.Certificate, cf.EndorserClients, cf.DeliverClients, cf.BroadcastClient)
-// 	proposalResp, txid, err := cf.ChaincodeInvokeOrQuery(spec, cc.ChannelID, txID, invoke)
-// 	if err != nil {
-// 		return nil, "", errors.Errorf("%s - proposal response: %v", err, proposalResp)
-// 	}
-
-// 	if proposalResp == nil {
-// 		return nil, "", errors.New("error during query: received nil proposal response")
-// 	}
-// 	if proposalResp.Endorsement == nil {
-// 		return nil, "", errors.Errorf("endorsement failure during query. response: %v", proposalResp.Response)
-// 	}
-
-// 	return proposalResp, txid, nil
-// }
-
-// ChaincodeInvokeOrQuery invokes or queries the chaincode. If successful, the
-// INVOKE form prints the ProposalResponse to STDOUT, and the QUERY form prints
-// the query result on STDOUT. A command-line flag (-r, --raw) determines
-// whether the query result is output as raw bytes, or as a printable string.
-// The printable form is optionally (-x, --hex) a hexadecimal representation
-// of the query response. If the query response is NIL, nothing is output.
-//
-// NOTE - Query will likely go away as all interactions with the endorser are
-// Proposal and ProposalResponses
-func (cf *ChaincodeFactory) ChaincodeInvokeOrQuery(spec *pb.ChaincodeSpec, channelID string, txID string, invoke bool) (*pb.ProposalResponse, string, error) {
-	var (
-		responses []*pb.ProposalResponse
-		result    string
-		tMap      map[string][]byte
-	)
-
-	// Build the ChaincodeInvocationSpec message 创建chaincode执行描述结构，创建proposal
-	invocation := &pb.ChaincodeInvocationSpec{ChaincodeSpec: spec}
-
-	creator, err := cf.Signer.Serialize()
-	if err != nil {
-		return nil, "", errors.WithMessage(err, fmt.Sprintf("error serializing identity for %s", cf.Signer.GetIdentifier()))
-	}
-
-	prop, txid, err := fprotoutils.CreateChaincodeProposalWithTxIDAndTransient(fcommon.HeaderType_ENDORSER_TRANSACTION, channelID, invocation, creator, txID, tMap)
-	logger.Debug(" ChaincodeInvokeOrQuery fprotoutils.CreateChaincodeProposalWithTxIDAndTransient", txid)
-	if err != nil {
-		return nil, "", errors.WithMessage(err, "error creating proposal")
-	}
-	result = txid
-	//对proposal签名
-	signedProp, err := fprotoutils.GetSignedProposal(prop, cf.Signer)
-
-	if err != nil {
-		return nil, "", errors.WithMessage(err, "error creating signed proposal ")
-	}
-	logger.Debug("ChaincodeInvokeOrQuery fprotoutils.GetSignedProposal==== success")
-	for _, endorser := range cf.EndorserClients {
-		//使用grpc调用endorserClient.ProcessProposal，触发endorer执行proposal
-		proposalResp, err := endorser.ProcessProposal(context.Background(), signedProp)
-		if err != nil {
-			return nil, "", errors.WithMessage(err, "error endorsing ")
-		}
-
-		responses = append(responses, proposalResp)
-	}
-
-	if len(responses) == 0 {
-		// this should only happen if some new code has introduced a bug
-		return nil, "", errors.New("no proposal responses received - this might indicate a bug")
-	}
-	// all responses will be checked when the signed transaction is created.
-	// for now, just set this so we check the first response's status
-	proposalResp := responses[0]
-	//得到proposalResponse，如果是查询类命令直接返回结果；
-	//如果是执行交易类，需要对交易签名CreateSignedTx，然后调用BroadcastClient发送给orderer进行排序，返回response
-	if invoke {
-		if proposalResp != nil {
-			if proposalResp.Response.Status >= errorStatus {
-				return proposalResp, "", nil
-			}
-			// assemble a signed transaction (it's an Envelope message) 对交易签名CreateSignedTx
-			env, err := fprotoutils.CreateSignedTx(prop, cf.Signer, responses...)
-			if err != nil {
-				return proposalResp, "", errors.WithMessage(err, "could not assemble transaction")
-			}
-			logger.Debug("ChaincodeInvokeOrQuery fprotoutils.CreateSignedTx 成功")
-
-			var dg *deliverGroup
-			var ctx context.Context
-			if rpcCommonDate.WaitForEvent {
-				var cancelFunc context.CancelFunc
-				ctx, cancelFunc = context.WithTimeout(context.Background(), rpcCommonDate.WaitForEventTimeout)
-				defer cancelFunc()
-
-				padd := rpcCommonDate.PeerEnv.GetPeerAddresses()
-				dg = newDeliverGroup(cf.DeliverClients, padd, cf.Certificate, channelID, txid)
-				logger.Debug("ChaincodeInvokeOrQuery newDeliverGroup 成功")
-
-				// connect to deliver service on all peers
-				err := dg.Connect(ctx)
-				if err != nil {
-					return nil, "", err
-				}
-			}
-
-			// send the envelope for ordering  调用BroadcastClient发送给orderer进行排序
-			if err = cf.BroadcastClient.Send(env); err != nil {
-				return proposalResp, "", errors.WithMessage(err, "error sending transaction")
-			}
-
-			if dg != nil && ctx != nil {
-				// wait for event that contains the txid from all peers
-				err = dg.Wait(ctx)
-				if err != nil {
-					return nil, "", err
-				}
-			}
-		}
-	}
-
-	return proposalResp, result, nil
 }
 
 func newDeliverGroup(deliverClients []api.PeerDeliverClient, peerAddresses []string, certificate tls.Certificate, channelID string, txid string) *deliverGroup {
@@ -669,6 +488,7 @@ func (dg *deliverGroup) ClientWait(dc *deliverClient) {
 	defer dg.wg.Done()
 	for {
 		resp, err := dc.Connection.Recv()
+
 		if err != nil {
 			err = errors.WithMessage(err, fmt.Sprintf("error receiving from deliver filtered at %s", dc.Address))
 			dg.setError(err)
@@ -680,12 +500,11 @@ func (dg *deliverGroup) ClientWait(dc *deliverClient) {
 			for _, tx := range filteredTransactions {
 				if tx.Txid == dg.TxID {
 					logger.Infof("txid [%s] committed with status (%s) at %s", dg.TxID, tx.TxValidationCode, dc.Address)
-					fmt.Printf("txid [%s] committed with status (%s) at %s", dg.TxID, tx.TxValidationCode, dc.Address)
 					return
 				}
 			}
 		case *pb.DeliverResponse_Status:
-			err = errors.Errorf("deliver completed with status (%s) before txid received", r.Status)
+			err = errors.Errorf("deliver completed with status (%s) before txid received at %s", r.Status, dc.Address)
 			dg.setError(err)
 			return
 		default:
@@ -714,7 +533,7 @@ func createDeliverEnvelope(channelID string, certificate tls.Certificate) *fcomm
 	var tlsCertHash []byte
 	// check for client certificate and create hash if present
 	if len(certificate.Certificate) > 0 {
-		tlsCertHash = util.ComputeSHA256(certificate.Certificate[0])
+		tlsCertHash = utils.ComputeSHA256(certificate.Certificate[0])
 	}
 
 	start := &ab.SeekPosition{
@@ -737,79 +556,16 @@ func createDeliverEnvelope(channelID string, certificate tls.Certificate) *fcomm
 		Behavior: ab.SeekInfo_BLOCK_UNTIL_READY,
 	}
 
-	//  env, err := fprotoutils.CreateSignedEnvelopeWithTLSBinding(
+	env, err := protoutils.CreateSignedEnvelopeWithTLSBinding(
+		fcommon.HeaderType_DELIVER_SEEK_INFO, channelID, mspex.NewSigner(),
+		seekInfo, int32(0), uint64(0), tlsCertHash)
+	// env, err := CreateSignedEnvelopeWithTLSBinding(
 	// 	fcommon.HeaderType_DELIVER_SEEK_INFO, channelID, localmsp.NewSigner(),
 	// 	seekInfo, int32(0), uint64(0), tlsCertHash)
-	env, err := CreateSignedEnvelopeWithTLSBinding(
-		fcommon.HeaderType_DELIVER_SEEK_INFO, channelID, localmsp.NewSigner(),
-		seekInfo, int32(0), uint64(0), tlsCertHash)
 	if err != nil {
 		logger.Errorf("Error signing envelope: %s", err)
 		return nil
 	}
 
 	return env
-}
-
-func CreateSignedEnvelopeWithTLSBinding(txType fcommon.HeaderType, channelID string, signer localmsp.LocalSigner, dataMsg proto.Message, msgVersion int32, epoch uint64, tlsCertHash []byte) (*fcommon.Envelope, error) {
-	payloadChannelHeader := MakeChannelHeader(txType, msgVersion, channelID, epoch)
-	payloadChannelHeader.TlsCertHash = tlsCertHash
-	var err error
-	payloadSignatureHeader := &fcommon.SignatureHeader{}
-
-	if signer != nil {
-		payloadSignatureHeader, err = signer.NewSignatureHeader()
-		if err != nil {
-			return nil, err
-		}
-	}
-	fmt.Println(dataMsg)
-	data, err := proto.Marshal(dataMsg)
-	if err != nil {
-		return nil, err
-	}
-
-	paylBytes := MarshalOrPanic(&fcommon.Payload{
-		Header: MakePayloadHeader(payloadChannelHeader, payloadSignatureHeader),
-		Data:   data,
-	})
-
-	var sig []byte
-	if signer != nil {
-		sig, err = signer.Sign(paylBytes)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &fcommon.Envelope{Payload: paylBytes, Signature: sig}, nil
-}
-
-func MakeChannelHeader(headerType fcommon.HeaderType, version int32, chainID string, epoch uint64) *fcommon.ChannelHeader {
-	return &fcommon.ChannelHeader{
-		Type:    int32(headerType),
-		Version: version,
-		// Timestamp: &timestamp.Timestamp{
-		// 	Seconds: time.Now().Unix(),
-		// 	Nanos:   0,
-		// },
-		ChannelId: chainID,
-		Epoch:     epoch,
-	}
-}
-
-// MakePayloadHeader creates a Payload Header.
-func MakePayloadHeader(ch *fcommon.ChannelHeader, sh *fcommon.SignatureHeader) *fcommon.Header {
-	return &fcommon.Header{
-		ChannelHeader:   MarshalOrPanic(ch),
-		SignatureHeader: MarshalOrPanic(sh),
-	}
-}
-
-func MarshalOrPanic(pb proto.Message) []byte {
-	data, err := proto.Marshal(pb)
-	if err != nil {
-		panic(err)
-	}
-	return data
 }

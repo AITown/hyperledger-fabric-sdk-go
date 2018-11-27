@@ -12,9 +12,8 @@ import (
 	"fmt"
 
 	// "hyperledger-fabric-sdk-go/peerex/api"
-	"hyperledger-fabric-sdk-go/peerex/utils"
+	"hyperledger-fabric-sdk-go/utils"
 	"io/ioutil"
-	"time"
 
 	"github.com/hyperledger/fabric/core/comm"
 	"github.com/hyperledger/fabric/peer/common"
@@ -28,46 +27,21 @@ import (
 type PeerClient struct {
 	commonClient
 }
-
-// NewPeerClientFromEnv creates an instance of a PeerClient from the global
-// Viper instance
-// func NewPeerClientFromEnv() (*PeerClient, error) {
-// 	address, override, clientConfig, err := configFromEnv("peer")
-// 	if err != nil {
-// 		return nil, errors.WithMessage(err, "failed to load config for PeerClient")
-// 	}
-// 	return newPeerClientForClientConfig(address, override, clientConfig)
-// }
+type commonClient struct {
+	*comm.GRPCClient
+	address string
+	sn      string
+}
 
 // NewPeerClientForAddress creates an instance of a PeerClient using the
 // provided peer address and, if TLS is enabled, the TLS root cert file
 func (peer *OnePeer) NewPeerClientForAddress() (*PeerClient, error) {
-	// if address == "" {
-	// 	return nil, errors.New("peer address must be set")
-	// }
-	// if override == "" {
-
-	// }
-	// _, _, clientConfig, err := configFromEnv("peer")
 
 	clientConfig, err := peer.GetConfig()
 	if err != nil {
 		return nil, err
 	}
-	// logger.Debug("NewPeerClientForAddress:override---", override, "--peerclient.go 45 行")
-	// logger.Debug("NewPeerClientForAddress:clientConfig---", clientConfig, "--peerclient.go 48 行")
-	// if clientConfig.SecOpts.UseTLS {
-	// 	if tlsRootCertFile == "" {
-	// 		return nil, errors.New("tls root cert file must be set")
-	// 	}
 
-	// 	caPEM, res := ioutil.ReadFile(tlsRootCertFile)
-	// 	if res != nil {
-	// 		err = errors.WithMessage(res, fmt.Sprintf("unable to load TLS root cert file from %s", tlsRootCertFile))
-	// 		return nil, err
-	// 	}
-	// 	clientConfig.SecOpts.ServerRootCAs = [][]byte{caPEM}
-	// }
 	return peer.newPeerClientForClientConfig(clientConfig)
 }
 
@@ -97,6 +71,7 @@ func (pc *PeerClient) Endorser() (pb.EndorserClient, error) {
 
 // Deliver returns a client for the Deliver service
 func (pc *PeerClient) Deliver() (pb.Deliver_DeliverClient, error) {
+	logger.Debug("deliver client  connect to %s", pc.address)
 	conn, err := pc.commonClient.NewConnection(pc.address, pc.sn)
 	if err != nil {
 		return nil, errors.WithMessage(err, fmt.Sprintf("deliver client failed to connect to %s", pc.address))
@@ -107,6 +82,7 @@ func (pc *PeerClient) Deliver() (pb.Deliver_DeliverClient, error) {
 // PeerDeliver returns a client for the Deliver service for peer-specific use
 // cases (i.e. DeliverFiltered)
 func (pc *PeerClient) PeerDeliver() (api.PeerDeliverClient, error) {
+	logger.Debug("PeerDeliver client  connect to %s", pc.address)
 	conn, err := pc.commonClient.NewConnection(pc.address, pc.sn)
 	if err != nil {
 		return nil, errors.WithMessage(err, fmt.Sprintf("deliver client failed to connect to %s", pc.address))
@@ -117,6 +93,7 @@ func (pc *PeerClient) PeerDeliver() (api.PeerDeliverClient, error) {
 
 // Admin returns a client for the Admin service
 func (pc *PeerClient) Admin() (pb.AdminClient, error) {
+	logger.Debug("admin client  connect to %s", pc.address)
 	conn, err := pc.commonClient.NewConnection(pc.address, pc.sn)
 	if err != nil {
 		return nil, errors.WithMessage(err, fmt.Sprintf("admin client failed to connect to %s", pc.address))
@@ -170,11 +147,8 @@ func (peer *OnePeer) GetAdminClient() (pb.AdminClient, error) {
 func (peer *OnePeer) GetDeliverClient() (pb.Deliver_DeliverClient, error) {
 	var peerClient *PeerClient
 	var err error
-	// if address != "" {
 	peerClient, err = peer.NewPeerClientForAddress()
-	// } else {
-	// peerClient, err = NewPeerClientFromEnv()
-	// }
+
 	if err != nil {
 		return nil, err
 	}
@@ -188,26 +162,19 @@ func (peer *OnePeer) GetDeliverClient() (pb.Deliver_DeliverClient, error) {
 func (peer *OnePeer) GetPeerDeliverClient() (api.PeerDeliverClient, error) {
 	var peerClient *PeerClient
 	var err error
-	// if address != "" {
+
 	peerClient, err = peer.NewPeerClientForAddress()
-	// } else {
-	// 	peerClient, err = NewPeerClientFromEnv()
-	// }
 	if err != nil {
 		return nil, err
 	}
 	return peerClient.PeerDeliver()
 }
 
+var conutpeer = 0
+
 func (peer *OnePeer) GetConfig() (clientConfig comm.ClientConfig, err error) {
-	// address = viper.GetString(prefix + ".address")
-	// override = viper.GetString(prefix + ".tls.serverhostoverride")
 	clientConfig = comm.ClientConfig{}
-	connTimeout := peer.PeerClientConnTimeout
-	if connTimeout == time.Duration(0) {
-		connTimeout = defaultConnTimeout
-	}
-	clientConfig.Timeout = connTimeout
+	clientConfig.Timeout = peer.PeerClientConnTimeout
 	secOpts := &comm.SecureOptions{
 		UseTLS:            peer.PeerTLS,
 		RequireClientCert: peer.PeerTLSClientAuthRequired,
@@ -238,8 +205,8 @@ func (peer *OnePeer) GetConfig() (clientConfig comm.ClientConfig, err error) {
 	}
 	clientConfig.SecOpts = secOpts
 
-	logger.Debug("get peer config 第", count, "次", peer)
-	count++
+	logger.Debug("get peer config 第", conutpeer, "次", peer, "connTimeout", peer.PeerClientConnTimeout)
+	conutpeer++
 	return
 }
 
