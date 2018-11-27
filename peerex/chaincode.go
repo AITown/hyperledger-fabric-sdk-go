@@ -46,7 +46,7 @@ func (r *rPCBuilder) Query(args []string) (string, error) {
 	}
 
 	logger.Debug("========InitFactory start:============")
-	cf, err := r.InitFactory(false, true, false)
+	cf, err := r.InitFactory(false)
 	if err != nil {
 		return "", err
 	}
@@ -66,7 +66,7 @@ func (r *rPCBuilder) Invoke(args []string) (string, error) {
 	}
 	// r.InitConfig()
 	InitCrypto(r.MspEnv)
-	cf, err := r.InitFactory(true, true, true)
+	cf, err := r.InitFactory(true)
 	if err != nil {
 		return "", err
 	}

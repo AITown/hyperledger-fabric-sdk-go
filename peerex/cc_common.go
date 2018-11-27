@@ -274,41 +274,34 @@ func (r *rPCBuilder) InitConfig() {
 }
 
 //InitFactory 初始化chaincode命令工厂
-func (r *rPCBuilder) InitFactory(invoke, isEndorserRequired, isOrdererRequired bool) (*ChaincodeFactory, error) {
+func (r *rPCBuilder) InitFactory(isOrdererRequired bool) (*ChaincodeFactory, error) {
 	var (
 		err             error
 		endorserClients []pb.EndorserClient
 		deliverClients  []api.PeerDeliverClient
-		// tlsRootCertFiles     = r.PeerTLSRootCertFile
-		// peerAddresses        = r.PeerAddresses
-		// peerhostoverrides    = r.PeerTLSHostnameOverride
-		// ordererAddresses = r.OrdererAddress
-		// ordererhostoverrides = r.OrdererTLSHostnameOverride
 	)
-	//背书请求 如果需要跟endorser通信，那么创建endorserClient，参见peerclient.go的NewPeerClientFromEnv函数。
-	if isEndorserRequired {
 
-		for _, peer := range r.Peers {
-			//error getting endorser client for query: endorser client failed to connect to
-			//path: failed to create new connection: context deadline exceeded
-			logger.Debug("common.GetEndorserClientFnc override:", peer.PeerTLSHostnameOverride)
-			endorserClient, err := peer.GetEndorserClient()
-			if err != nil {
-				return nil, errors.WithMessage(err, fmt.Sprintf("error getting endorser client "))
-			}
-
-			endorserClients = append(endorserClients, endorserClient)
-			deliverClient, err := peer.GetPeerDeliverClient()
-			if err != nil {
-				return nil, errors.WithMessage(err, fmt.Sprintf("error getting deliver client "))
-			}
-			deliverClients = append(deliverClients, deliverClient)
+	for _, peer := range r.Peers {
+		//error getting endorser client for query: endorser client failed to connect to
+		//path: failed to create new connection: context deadline exceeded
+		logger.Debug("common.GetEndorserClientFnc override:", peer.PeerTLSHostnameOverride)
+		endorserClient, err := peer.GetEndorserClient()
+		if err != nil {
+			return nil, errors.WithMessage(err, fmt.Sprintf("error getting endorser client "))
 		}
-
-		if len(endorserClients) == 0 {
-			return nil, errors.New("no endorser clients retrieved - this might indicate a bug")
+		//背书请求 如果需要跟endorser通信，那么创建endorserClient，参见peerclient.go
+		endorserClients = append(endorserClients, endorserClient)
+		deliverClient, err := peer.GetPeerDeliverClient()
+		if err != nil {
+			return nil, errors.WithMessage(err, fmt.Sprintf("error getting deliver client "))
 		}
+		deliverClients = append(deliverClients, deliverClient)
 	}
+
+	if len(endorserClients) == 0 {
+		return nil, errors.New("no endorser clients retrieved - this might indicate a bug")
+	}
+
 	peer := r.Peers[0]
 	certificate, err := peer.GetCertificate()
 	if err != nil {
@@ -327,23 +320,6 @@ func (r *rPCBuilder) InitFactory(invoke, isEndorserRequired, isOrdererRequired b
 	// 如果指定了orderer地址，那么直接调用GetBroadcastClientFnc获取BroadcastClient。
 
 	if isOrdererRequired {
-		// if len(ordererAddresses) == 0 {
-		// 	if len(endorserClients) == 0 {
-		// 		return nil, errors.New("orderer is required, but no ordering endpoint or endorser client supplied")
-		// 	}
-
-		// 	endorserClient := endorserClients[0]
-		// 	orderingEndpoints, err := GetOrdererEndpointOfChainFnc(r.ChannelID, signer, endorserClient)
-		// 	if err != nil {
-		// 		return nil, errors.WithMessage(err, fmt.Sprintf("error getting channel (%s) orderer endpoint", r.ChannelID))
-		// 	}
-		// 	if len(orderingEndpoints) == 0 {
-		// 		return nil, errors.Errorf("no orderer endpoints retrieved for channel %s", r.ChannelID)
-		// 	}
-		// 	logger.Infof("Retrieved channel (%s) orderer endpoint: %s", r.ChannelID, orderingEndpoints[0])
-		// 	// override viper env
-		// 	viper.Set("orderer.address", orderingEndpoints[0])
-		// }
 		logger.Debug("----开始根据环境变量构建:GetBroadcastClientFnc")
 		broadcastClient, err = r.OrderEnv.GetBroadcastClient()
 
