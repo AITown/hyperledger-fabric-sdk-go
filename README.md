@@ -8,3 +8,7 @@
 
 
 + 目前没有进行版本管理，可以git clone fabric 源码之后 checkout 到1.2  
+
+
+注
++ Gopkg.lock 不应该上传并且做修改的，但是用dep init的编译有问题，所以对Gopkg.lock做了部分版本修改
