@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package flogging
+package utils
 
 import (
 	"io"
@@ -27,9 +27,10 @@ import (
 )
 
 const (
-	pkgLogID      = "flogging"
-	defaultFormat = "%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}"
+	pkgLogID = "cc_logging"
+	// defaultFormat = "%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}"
 	defaultLevel  = logging.INFO
+	defaultFormat = "%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfile} %{callpath} -> %{level:.4s} %{id:03x}%{color:reset} %{message}"
 )
 
 var (
