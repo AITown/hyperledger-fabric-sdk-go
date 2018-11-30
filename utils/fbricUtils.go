@@ -37,5 +37,3 @@ func GetRandomNonce() ([]byte, error) {
 // func CreateUtcTimestamp() *timestamp.Timestamp {
 // 	return util.CreateUtcTimestamp()
 // }
-
-//

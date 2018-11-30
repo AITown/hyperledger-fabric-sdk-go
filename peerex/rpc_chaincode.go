@@ -20,7 +20,7 @@ func NewRpcBuilder() *RPCBuilder {
 	r.OrderEnv = new(OrderEnv)
 	r.ChaincodeEnv = new(ChaincodeEnv)
 	r.MspEnv = new(msp.MspEnv)
-	r.PeerEnv = new(PeerEnv)
+	r.PeersEnv = new(PeersEnv)
 	return r
 }
 

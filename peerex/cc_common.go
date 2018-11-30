@@ -1,24 +1,18 @@
 package peerex
 
 import (
-	"context"
-	"crypto/tls"
 	"fmt"
-	"math"
-	"path/filepath"
 	"time"
 
 	mspex "hyperledger-fabric-sdk-go/msp"
 	"hyperledger-fabric-sdk-go/utils"
 
+	"github.com/hyperledger/fabric/common/util"
 	"github.com/hyperledger/fabric/msp"
-	"github.com/hyperledger/fabric/peer/common/api"
 	fcommon "github.com/hyperledger/fabric/protos/common"
-	ab "github.com/hyperledger/fabric/protos/orderer"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	protoutils "github.com/hyperledger/fabric/protos/utils"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -56,14 +50,6 @@ const (
 	ordererTLSClientCertFile     = ordererbase + ".tls.clientCert.file"
 	ordererTLSHostnameOverride   = ordererbase + ".tls.serverhostoverride"
 )
-
-type ChaincodeFactory struct {
-	EndorserClients []pb.EndorserClient
-	DeliverClients  []api.PeerDeliverClient
-	Certificate     tls.Certificate
-	Signer          msp.SigningIdentity
-	BroadcastClient BroadcastClient
-}
 
 //Verify 检查参数正确性 没有的构建默认值
 func (r *rPCBuilder) Verify(get bool) error {
@@ -111,43 +97,24 @@ func (r *rPCBuilder) Verify(get bool) error {
 	logger.Debug("检查参数正确性=======down")
 	return nil
 }
-func (o *OrderEnv) verify() error {
-	if o == nil {
+func (node *NodeEnv) verify() error {
+	if node == nil {
 		return errors.New("orderer 节点配置不能为空")
 	}
-	if utils.IsNullOrEmpty(o.OrdererAddress) || utils.IsNullOrEmpty(o.OrdererTLSHostnameOverride) {
-		return errors.New("OrdererAddress，OrdererTLSHostnameOverride  不能为空")
+	if utils.IsNullOrEmpty(node.Address) || utils.IsNullOrEmpty(node.HostnameOverride) {
+		return errors.New("Address，HostnameOverride  不能为空")
 	}
-	if o.OrdererTLS {
-		if utils.IsNullOrEmpty(o.OrdererTLSRootCertFile) {
+	if node.TLS {
+		if utils.IsNullOrEmpty(node.RootCertFile) {
 			return errors.New("OrdererTLSRootCertFile  不能为空")
 		}
 	}
 
-	if o.OrdererConnTimeout == time.Duration(0) {
-		o.OrdererConnTimeout = defaultTimeout
+	if node.ConnTimeout == time.Duration(0) {
+		node.ConnTimeout = defaultTimeout
 	}
 
-	logger.Debug("set PeerClientConnTimeout", o.OrdererConnTimeout)
-	return nil
-}
-func (p *OnePeer) verify() error {
-	if p == nil {
-		return errors.New("peer 节点配置不能为空")
-	}
-	if utils.IsNullOrEmpty(p.PeerTLSHostnameOverride) || utils.IsNullOrEmpty(p.PeerAddresses) {
-		return errors.New("PeerTLSHostnameOverride,PeerAddresses 不能为空")
-	}
-	if p.PeerTLS {
-		if utils.IsNullOrEmpty(p.PeerTLSRootCertFile) {
-			return errors.New("PeerTLSRootCertFile 不能为空")
-		}
-	}
-	if p.PeerClientConnTimeout == time.Duration(0) {
-		p.PeerClientConnTimeout = defaultTimeout
-	}
-
-	logger.Debug("set PeerClientConnTimeout", p.PeerClientConnTimeout)
+	logger.Debug("set PeerClientConnTimeout", node.ConnTimeout)
 	return nil
 }
 
@@ -180,162 +147,69 @@ func InitWithFile(path string) Handle {
 	// 	fmt.Println("utils.InitPeerViper faile:", err)
 	// }
 	r := NewRpcBuilder()
-	p := &OnePeer{}
+	// p := &OnePeer{}
 
-	p.PeerClientConnTimeout = viper.GetDuration(peerClientconntimeout)
+	// p.PeerClientConnTimeout = viper.GetDuration(peerClientconntimeout)
 
-	p.PeerTLS = viper.GetBool(peerTLSEnabled)
-	p.PeerTLSClientAuthRequired = viper.GetBool(peerTLSClientAuthRequired)
-	p.PeerTLSCertFile = viper.GetString(peerTLSCertFile)
-	p.PeerTLSKeyFile = viper.GetString(peerTLSKeyFile)
-	p.PeerTLSClientCertFile = viper.GetString(peerTLSClientCertFile)
-	p.PeerTLSClientKeyFile = viper.GetString(peerTLSClientKeyFile)
+	// p.PeerTLS = viper.GetBool(peerTLSEnabled)
+	// p.PeerTLSClientAuthRequired = viper.GetBool(peerTLSClientAuthRequired)
+	// p.PeerTLSCertFile = viper.GetString(peerTLSCertFile)
+	// p.PeerTLSKeyFile = viper.GetString(peerTLSKeyFile)
+	// p.PeerTLSClientCertFile = viper.GetString(peerTLSClientCertFile)
+	// p.PeerTLSClientKeyFile = viper.GetString(peerTLSClientKeyFile)
 
-	r.Peers = append(r.Peers, p)
-	//msp
-	r.MspID = viper.GetString(peerLocalMspID)
-	r.MspConfigPath = viper.GetString(peerMspConfigPath)
-	r.MspType = viper.GetString(peerLocalMspType)
+	// r.Peers = append(r.Peers, p)
+	// //msp
+	// r.MspID = viper.GetString(peerLocalMspID)
+	// r.MspConfigPath = viper.GetString(peerMspConfigPath)
+	// r.MspType = viper.GetString(peerLocalMspType)
 
-	//order
-	r.OrdererConnTimeout = viper.GetDuration(ordererConnTimeout)
-	r.OrdererTLS = viper.GetBool(ordererTLS)
-	r.OrdererTLSClientAuthRequired = viper.GetBool(ordererTLSClientAuthRequired)
-	r.OrdererAddress = viper.GetString(ordererEndpoint)
-	r.OrdererTLSHostnameOverride = viper.GetString(ordererTLSHostnameOverride)
-	r.OrdererTLSClientCertFile = viper.GetString(ordererTLSClientCertFile)
-	r.OrdererTLSClientKeyFile = viper.GetString(ordererTLSClientKeyFile)
-	r.OrdererTLSRootCertFile = viper.GetString(ordererTLSRootCertFile)
+	// //order
+	// r.OrdererConnTimeout = viper.GetDuration(ordererConnTimeout)
+	// r.OrdererTLS = viper.GetBool(ordererTLS)
+	// r.OrdererTLSClientAuthRequired = viper.GetBool(ordererTLSClientAuthRequired)
+	// r.OrdererAddress = viper.GetString(ordererEndpoint)
+	// r.OrdererTLSHostnameOverride = viper.GetString(ordererTLSHostnameOverride)
+	// r.OrdererTLSClientCertFile = viper.GetString(ordererTLSClientCertFile)
+	// r.OrdererTLSClientKeyFile = viper.GetString(ordererTLSClientKeyFile)
+	// r.OrdererTLSRootCertFile = viper.GetString(ordererTLSRootCertFile)
 
 	return r
 
 }
 
-//InitConfig 初始化配置变量 暂时不需要
-func (r *rPCBuilder) InitConfig() {
-	logger.Debug("viper.ConfigFileUsed:", filepath.Dir(viper.ConfigFileUsed()))
-
-	//peer
-	//peerAddress  peerTLSRootCertFile peerTLSServerhostOverride 在invoke时不做变化
-	connttime := viper.GetDuration(peerClientconntimeout)
-
-	// if r.PeerClientConnTimeout != connttime {
-	// 	viper.Set(peerClientconntimeout, r.PeerClientConnTimeout.String())
-	// }
-	// viper.Set(peerTLSEnabled, r.PeerTLS)
-	// viper.Set(peerTLSClientAuthRequired, r.PeerTLSClientAuthRequired)
-	// if r.PeerTLSCertFile != "" {
-	// 	viper.Set(peerTLSCertFile, r.PeerTLSCertFile)
-	// }
-	// if r.PeerTLSKeyFile != "" {
-	// 	viper.Set(peerTLSKeyFile, r.PeerTLSKeyFile)
-	// }
-
-	// if r.PeerTLSClientCertFile != "" {
-	// 	viper.Set(peerTLSClientCertFile, r.PeerTLSClientCertFile)
-	// }
-	// if r.PeerTLSClientKeyFile != "" {
-	// 	viper.Set(peerTLSClientKeyFile, r.PeerTLSClientKeyFile)
-	// }
-	//msp
-	if r.MspID != "" {
-		viper.Set(peerLocalMspID, r.MspID)
-	}
-	if r.MspConfigPath != "" {
-		viper.Set(peerMspConfigPath, r.MspConfigPath)
-	}
-	if r.MspType != "" {
-		viper.Set(peerLocalMspType, r.MspType)
-	}
-
-	//order
-	connttime = viper.GetDuration(ordererConnTimeout)
-	if r.OrdererConnTimeout != connttime {
-		viper.Set(ordererConnTimeout, r.OrdererConnTimeout)
-	}
-	viper.Set(ordererTLS, r.OrdererTLS)
-	viper.Set(ordererTLSClientAuthRequired, r.OrdererTLSClientAuthRequired)
-	if r.OrdererAddress != "" {
-		viper.Set(ordererEndpoint, r.OrdererAddress)
-	}
-	if r.OrdererTLSHostnameOverride != "" {
-		viper.Set(ordererTLSHostnameOverride, r.OrdererTLSHostnameOverride)
-	}
-	if r.OrdererTLSClientCertFile != "" {
-		viper.Set(ordererTLSClientCertFile, r.OrdererTLSClientCertFile)
-	}
-	if r.OrdererTLSClientKeyFile != "" {
-		viper.Set(ordererTLSClientKeyFile, r.OrdererTLSClientKeyFile)
-	}
-	if r.OrdererTLSRootCertFile != "" {
-		viper.Set(ordererTLSRootCertFile, r.OrdererTLSRootCertFile)
-	}
-
-}
-
 //InitFactory 初始化chaincode命令工厂
-func (r *rPCBuilder) InitFactory(isOrdererRequired bool) (*ChaincodeFactory, error) {
-	var (
-		err             error
-		endorserClients []pb.EndorserClient
-		deliverClients  []api.PeerDeliverClient
-	)
+func (r *rPCBuilder) InitConn(isOrdererRequired bool) error {
 
-	for _, peer := range r.Peers {
-		//error getting endorser client for query: endorser client failed to connect to
-		//path: failed to create new connection: context deadline exceeded
-		logger.Debug("common.GetEndorserClientFnc override:", peer.PeerTLSHostnameOverride)
-		endorserClient, err := peer.GetEndorserClient()
-		if err != nil {
-			return nil, errors.WithMessage(err, fmt.Sprintf("error getting endorser client "))
-		}
-		//背书请求 如果需要跟endorser通信，那么创建endorserClient，参见peerclient.go
-		endorserClients = append(endorserClients, endorserClient)
-		deliverClient, err := peer.GetPeerDeliverClient()
-		if err != nil {
-			return nil, errors.WithMessage(err, fmt.Sprintf("error getting deliver client "))
-		}
-		deliverClients = append(deliverClients, deliverClient)
-	}
-
-	if len(endorserClients) == 0 {
-		return nil, errors.New("no endorser clients retrieved - this might indicate a bug")
-	}
-
-	peer := r.Peers[0]
-	certificate, err := peer.GetCertificate()
-	if err != nil {
-		return nil, errors.WithMessage(err, "error getting client cerificate")
-	}
-
-	//signer, err := GetDefaultSignerFnc()
+	logger.Debug("========InitConn start:============")
+	// for _, peer := range r.Peers {
+	//error getting endorser client for query: endorser client failed to connect to
+	//path: failed to create new connection: context deadline exceeded
+	// logger.Debug("common.GetEndorserClientFnc override:", node.HostnameOverride)
 	signer, err := mspex.GetSigningIdentity()
+	r.ChaincodeEnv.Signer = signer
 	if err != nil {
-		return nil, errors.WithMessage(err, "error getting default signer")
+		return errors.WithMessage(err, "error getting default signer")
 	}
 
-	var broadcastClient BroadcastClient
-	// 如果需要跟orderer通信，那么创建跟orderer交互的BroadcastClient。
-	// 如果配置没有指定orderer的地址，那么使用GetOrdererEndpointOfChainFnc函数获取所有orderer的地址，取第一个作为通信orderer，调用GetBroadcastClientFnc函数获取BroadcastClient，
-	// 如果指定了orderer地址，那么直接调用GetBroadcastClientFnc获取BroadcastClient。
+	for i := 0; i < len(r.Peers); i++ {
+		err := r.Peers[i].ClientConn()
+		if err != nil {
+			return err
+		}
+
+		logger.Debug("----order grpc conn----")
+	}
 
 	if isOrdererRequired {
-		logger.Debug("----开始根据环境变量构建:GetBroadcastClientFnc")
-		broadcastClient, err = r.OrderEnv.GetBroadcastClient()
 
+		err := r.OrderEnv.ClientConn()
 		if err != nil {
-			return nil, errors.WithMessage(err, "error ==getting broadcast client")
+			return err
 		}
+		logger.Debug("----order grpc conn----")
 	}
-
-	// 根据上面获得信息组装ChaincodeCmdFactory返回
-	return &ChaincodeFactory{
-		EndorserClients: endorserClients,
-		DeliverClients:  deliverClients,
-		Signer:          signer,
-		BroadcastClient: broadcastClient,
-		Certificate:     certificate,
-	}, nil
+	return nil
 }
 
 // getChaincodeSpec get chaincode spec from the  pramameters
@@ -360,188 +234,113 @@ func (cc *ChaincodeEnv) getChaincodeSpec(args []string) *pb.ChaincodeSpec {
 	return spec
 }
 
-func newDeliverGroup(deliverClients []api.PeerDeliverClient, peerAddresses []string, certificate tls.Certificate, channelID string, txid string) *deliverGroup {
-	clients := make([]*deliverClient, len(deliverClients))
-	for i, client := range deliverClients {
-		dc := &deliverClient{
-			Client:  client,
-			Address: peerAddresses[i],
-		}
-		clients[i] = dc
-	}
-
-	dg := &deliverGroup{
-		Clients:     clients,
-		Certificate: certificate,
-		ChannelID:   channelID,
-		TxID:        txid,
-	}
-
-	return dg
-}
-
-// Connect waits for all deliver clients in the group to connect to
-// the peer's deliver service, receive an error, or for the context
-// to timeout. An error will be returned whenever even a single
-// deliver client fails to connect to its peer
-func (dg *deliverGroup) Connect(ctx context.Context) error {
-	dg.wg.Add(len(dg.Clients))
-	for _, client := range dg.Clients {
-		go dg.ClientConnect(ctx, client)
-	}
-	readyCh := make(chan struct{})
-	go dg.WaitForWG(readyCh)
-
-	select {
-	case <-readyCh:
-		if dg.Error != nil {
-			err := errors.WithMessage(dg.Error, "failed to connect to deliver on all peers")
-			return err
-		}
-	case <-ctx.Done():
-		err := errors.New("timed out waiting for connection to deliver on all peers")
-		return err
-	}
-
-	return nil
-}
-
-// ClientConnect sends a deliver seek info envelope using the
-// provided deliver client, setting the deliverGroup's Error
-// field upon any error
-func (dg *deliverGroup) ClientConnect(ctx context.Context, dc *deliverClient) {
-	defer dg.wg.Done()
-	df, err := dc.Client.DeliverFiltered(ctx)
+// CreateChaincodeProposalWithTxIDAndTransient creates a proposal from given input
+// It returns the proposal and the transaction id associated to the proposal
+func CreateChaincodeProposalWithTxIDAndTransient(chainID string, spec *pb.ChaincodeSpec, creator []byte, transientMap map[string][]byte) (*pb.Proposal, string, error) {
+	// generate a random nonce
+	nonce, err := utils.GetRandomNonce()
 	if err != nil {
-		err = errors.WithMessage(err, fmt.Sprintf("error connecting to deliver filtered at %s", dc.Address))
-		dg.setError(err)
-		return
+		return nil, "", err
 	}
-	defer df.CloseSend()
-	dc.Connection = df
-
-	envelope := createDeliverEnvelope(dg.ChannelID, dg.Certificate)
-	err = df.Send(envelope)
+	txid, err := protoutils.ComputeProposalTxID(nonce, creator)
 	if err != nil {
-		err = errors.WithMessage(err, fmt.Sprintf("error sending deliver seek info envelope to %s", dc.Address))
-		dg.setError(err)
-		return
+		return nil, "", err
 	}
-}
+	invocation := &pb.ChaincodeInvocationSpec{ChaincodeSpec: spec}
+	ccHdrExt := &pb.ChaincodeHeaderExtension{ChaincodeId: spec.ChaincodeId}
 
-// Wait waits for all deliver client connections in the group to
-// either receive a block with the txid, an error, or for the
-// context to timeout
-func (dg *deliverGroup) Wait(ctx context.Context) error {
-	if len(dg.Clients) == 0 {
-		return nil
-	}
-
-	dg.wg.Add(len(dg.Clients))
-	for _, client := range dg.Clients {
-		go dg.ClientWait(client)
-	}
-	readyCh := make(chan struct{})
-	go dg.WaitForWG(readyCh)
-
-	select {
-	case <-readyCh:
-		if dg.Error != nil {
-			err := errors.WithMessage(dg.Error, "failed to receive txid on all peers")
-			return err
-		}
-	case <-ctx.Done():
-		err := errors.New("timed out waiting for txid on all peers")
-		return err
-	}
-
-	return nil
-}
-
-// ClientWait waits for the specified deliver client to receive
-// a block event with the requested txid
-func (dg *deliverGroup) ClientWait(dc *deliverClient) {
-	defer dg.wg.Done()
-	for {
-		resp, err := dc.Connection.Recv()
-
-		if err != nil {
-			err = errors.WithMessage(err, fmt.Sprintf("error receiving from deliver filtered at %s", dc.Address))
-			dg.setError(err)
-			return
-		}
-		switch r := resp.Type.(type) {
-		case *pb.DeliverResponse_FilteredBlock:
-			filteredTransactions := r.FilteredBlock.FilteredTransactions
-			for _, tx := range filteredTransactions {
-				if tx.Txid == dg.TxID {
-					logger.Infof("txid [%s] committed with status (%s) at %s", dg.TxID, tx.TxValidationCode, dc.Address)
-					return
-				}
-			}
-		case *pb.DeliverResponse_Status:
-			err = errors.Errorf("deliver completed with status (%s) before txid received at %s", r.Status, dc.Address)
-			dg.setError(err)
-			return
-		default:
-			err = errors.Errorf("received unexpected response type (%T) from %s", r, dc.Address)
-			dg.setError(err)
-			return
-		}
-	}
-}
-
-// WaitForWG waits for the deliverGroup's wait group and closes
-// the channel when ready
-func (dg *deliverGroup) WaitForWG(readyCh chan struct{}) {
-	dg.wg.Wait()
-	close(readyCh)
-}
-
-// setError serializes an error for the deliverGroup
-func (dg *deliverGroup) setError(err error) {
-	dg.mutex.Lock()
-	dg.Error = err
-	dg.mutex.Unlock()
-}
-
-func createDeliverEnvelope(channelID string, certificate tls.Certificate) *fcommon.Envelope {
-	var tlsCertHash []byte
-	// check for client certificate and create hash if present
-	if len(certificate.Certificate) > 0 {
-		tlsCertHash = utils.ComputeSHA256(certificate.Certificate[0])
-	}
-
-	start := &ab.SeekPosition{
-		Type: &ab.SeekPosition_Newest{
-			Newest: &ab.SeekNewest{},
-		},
-	}
-
-	stop := &ab.SeekPosition{
-		Type: &ab.SeekPosition_Specified{
-			Specified: &ab.SeekSpecified{
-				Number: math.MaxUint64,
-			},
-		},
-	}
-
-	seekInfo := &ab.SeekInfo{
-		Start:    start,
-		Stop:     stop,
-		Behavior: ab.SeekInfo_BLOCK_UNTIL_READY,
-	}
-
-	env, err := protoutils.CreateSignedEnvelopeWithTLSBinding(
-		fcommon.HeaderType_DELIVER_SEEK_INFO, channelID, mspex.NewSigner(),
-		seekInfo, int32(0), uint64(0), tlsCertHash)
-	// env, err := CreateSignedEnvelopeWithTLSBinding(
-	// 	fcommon.HeaderType_DELIVER_SEEK_INFO, channelID, localmsp.NewSigner(),
-	// 	seekInfo, int32(0), uint64(0), tlsCertHash)
+	ccHdrExtBytes, err := protoutils.Marshal(ccHdrExt)
 	if err != nil {
-		logger.Errorf("Error signing envelope: %s", err)
-		return nil
+		return nil, "", err
 	}
 
-	return env
+	cisBytes, err := protoutils.Marshal(invocation)
+	if err != nil {
+		return nil, "", err
+	}
+
+	ccPropPayload := &pb.ChaincodeProposalPayload{Input: cisBytes, TransientMap: transientMap}
+	ccPropPayloadBytes, err := protoutils.Marshal(ccPropPayload)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// TODO: epoch is now set to zero. This must be changed once we
+	// get a more appropriate mechanism to handle it in.
+	var (
+		epoch     uint64
+		timestamp = util.CreateUtcTimestamp()
+		typ       = int32(fcommon.HeaderType_ENDORSER_TRANSACTION)
+	)
+
+	channelHeader, err := protoutils.Marshal(&fcommon.ChannelHeader{
+		Type:      typ,
+		TxId:      txid,
+		Timestamp: timestamp,
+		ChannelId: chainID,
+		Extension: ccHdrExtBytes,
+		Epoch:     epoch,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	signatureHeader, err := protoutils.Marshal(&fcommon.SignatureHeader{
+		Nonce:   nonce,
+		Creator: creator,
+	})
+
+	if err != nil {
+		return nil, "", err
+	}
+
+	hdr := &fcommon.Header{
+		ChannelHeader:   channelHeader,
+		SignatureHeader: signatureHeader,
+	}
+
+	hdrBytes, err := protoutils.Marshal(hdr)
+	if err != nil {
+		return nil, "", err
+	}
+	return &pb.Proposal{Header: hdrBytes, Payload: ccPropPayloadBytes}, txid, nil
 }
+
+// GetSignedProposal returns a signed proposal given a Proposal message and a signing identity
+func GetSignedProposal(prop *pb.Proposal, signer msp.SigningIdentity) (*pb.SignedProposal, error) {
+	// check for nil argument
+	if prop == nil || signer == nil {
+		return nil, fmt.Errorf("Nil arguments")
+	}
+
+	propBytes, err := protoutils.Marshal(prop)
+	if err != nil {
+		return nil, err
+	}
+
+	signature, err := signer.Sign(propBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.SignedProposal{ProposalBytes: propBytes, Signature: signature}, nil
+}
+
+// Serialize returns a byte array representation of this identity
+// func (id *identity) Serialize() ([]byte, error) {
+// 	// mspIdentityLogger.Infof("Serializing identity %s", id.id)
+// 	fmt.Println(`F:\virtualMachineShare\src\github.com\hyperledger\fabric\msp\identities.go Serialize()`, id.id.Mspid)
+// 	pb := &pem.Block{Bytes: id.cert.Raw, Type: "CERTIFICATE"}
+// 	pemBytes := pem.EncodeToMemory(pb)
+// 	if pemBytes == nil {
+// 		return nil, errors.New("encoding of identity failed")
+// 	}
+
+// 	// We serialize identities by prepending the MSPID and appending the ASN.1 DER content of the cert
+// 	sId := &msp.SerializedIdentity{Mspid: id.id.Mspid, IdBytes: pemBytes}
+// 	idBytes, err := proto.Marshal(sId)
+// 	if err != nil {
+// 		return nil, errors.Wrapf(err, "could not marshal a SerializedIdentity structure for identity %s", id.id)
+// 	}
+
+// 	return idBytes, nil
+// }

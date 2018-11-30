@@ -20,9 +20,6 @@ func InitViper(envprefix string, filename string, configPath ...string) error {
 
 	viper.SetConfigName(filename) // Name of config file (without extension)
 
-	// fabricCfgPath, _ := os.Getwd()
-	// os.Setenv("FABRIC_CFG_PATH", fabricCfgPath)
-
 	//这个是fabric内部使用的,msp等会使用他
 	// err := fcommon.InitConfig("core")
 	// if err != nil {

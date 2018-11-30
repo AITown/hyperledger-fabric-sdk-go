@@ -10,16 +10,20 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-
-	// "hyperledger-fabric-sdk-go/peerex/api"
+	mspex "hyperledger-fabric-sdk-go/msp"
 	"hyperledger-fabric-sdk-go/utils"
-	"io/ioutil"
+	"math"
+	"time"
 
-	"github.com/hyperledger/fabric/core/comm"
+	//"hyperledger-fabric-sdk-go/api"
+
+	"google.golang.org/grpc"
+
 	"github.com/hyperledger/fabric/peer/common"
-
-	"github.com/hyperledger/fabric/peer/common/api"
+	fcommon "github.com/hyperledger/fabric/protos/common"
+	ab "github.com/hyperledger/fabric/protos/orderer"
 	pb "github.com/hyperledger/fabric/protos/peer"
+	protoutils "github.com/hyperledger/fabric/protos/utils"
 	"github.com/pkg/errors"
 )
 
@@ -27,203 +31,304 @@ import (
 type PeerClient struct {
 	commonClient
 }
+
+type GRPCClient struct {
+	// TLS configuration used by the grpc.ClientConn
+	tlsConfig *tls.Config
+	// Options for setting up new connections
+	dialOpts []grpc.DialOption
+	// Duration for which to block while established a new connection
+	timeout time.Duration
+	// Maximum message size the client can receive
+	maxRecvMsgSize int
+	// Maximum message size the client can send
+	maxSendMsgSize int
+}
+
+// ClientConfig defines the parameters for configuring a GRPCClient instance
+type ClientConfig struct {
+	// SecOpts defines the security parameters
+	SecOpts *SecureOptions
+	// KaOpts defines the keepalive parameters
+	KaOpts *KeepaliveOptions
+	// Timeout specifies how long the client will block when attempting to
+	// establish a connection
+	Timeout time.Duration
+}
+
+// SecureOptions defines the security parameters (e.g. TLS) for a
+// GRPCServer or GRPCClient instance
+type SecureOptions struct {
+	// PEM-encoded X509 public key to be used for TLS communication
+	Certificate []byte
+	// PEM-encoded private key to be used for TLS communication
+	Key []byte
+	// Set of PEM-encoded X509 certificate authorities used by clients to
+	// verify server certificates
+	ServerRootCAs [][]byte
+	// Set of PEM-encoded X509 certificate authorities used by servers to
+	// verify client certificates
+	ClientRootCAs [][]byte
+	// Whether or not to use TLS for communication
+	UseTLS bool
+	// Whether or not TLS client must present certificates for authentication
+	RequireClientCert bool
+	// CipherSuites is a list of supported cipher suites for TLS
+	CipherSuites []uint16
+}
+
+// KeepaliveOptions is used to set the gRPC keepalive settings for both
+// clients and servers
+type KeepaliveOptions struct {
+	// ClientInterval is the duration after which if the client does not see
+	// any activity from the server it pings the server to see if it is alive
+	ClientInterval time.Duration
+	// ClientTimeout is the duration the client waits for a response
+	// from the server after sending a ping before closing the connection
+	ClientTimeout time.Duration
+	// ServerInterval is the duration after which if the server does not see
+	// any activity from the client it pings the client to see if it is alive
+	ServerInterval time.Duration
+	// ServerTimeout is the duration the server waits for a response
+	// from the client after sending a ping before closing the connection
+	ServerTimeout time.Duration
+	// ServerMinInterval is the minimum permitted time between client pings.
+	// If clients send pings more frequently, the server will disconnect them
+	ServerMinInterval time.Duration
+}
 type commonClient struct {
-	*comm.GRPCClient
-	address string
-	sn      string
+	*GRPCClient
 }
 
-// NewPeerClientForAddress creates an instance of a PeerClient using the
-// provided peer address and, if TLS is enabled, the TLS root cert file
-func (peer *OnePeer) NewPeerClientForAddress() (*PeerClient, error) {
+func (peer *PeerEnv) NewEndorserClient() pb.EndorserClient {
 
-	clientConfig, err := peer.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	return peer.newPeerClientForClientConfig(clientConfig)
+	return pb.NewEndorserClient(peer.Connect)
 }
 
-func (peer *OnePeer) newPeerClientForClientConfig(clientConfig comm.ClientConfig) (*PeerClient, error) {
-	address := peer.PeerAddresses
-	override := peer.PeerTLSHostnameOverride
-	gClient, err := comm.NewGRPCClient(clientConfig)
-	if err != nil {
-		return nil, errors.WithMessage(err, "failed to create PeerClient from config")
-	}
-	pClient := &PeerClient{
-		commonClient: commonClient{
-			GRPCClient: gClient,
-			address:    address,
-			sn:         override}}
-	return pClient, nil
-}
-
-// Endorser returns a client for the Endorser service
-func (pc *PeerClient) Endorser() (pb.EndorserClient, error) {
-	conn, err := pc.commonClient.NewConnection(pc.address, pc.sn)
-	if err != nil {
-		return nil, errors.WithMessage(err, fmt.Sprintf("endorser client failed to connect to %s", pc.address))
-	}
-	return pb.NewEndorserClient(conn), nil
-}
-
-// Deliver returns a client for the Deliver service
-func (pc *PeerClient) Deliver() (pb.Deliver_DeliverClient, error) {
-	logger.Debug("deliver client  connect to %s", pc.address)
-	conn, err := pc.commonClient.NewConnection(pc.address, pc.sn)
-	if err != nil {
-		return nil, errors.WithMessage(err, fmt.Sprintf("deliver client failed to connect to %s", pc.address))
-	}
-	return pb.NewDeliverClient(conn).Deliver(context.TODO())
-}
-
-// PeerDeliver returns a client for the Deliver service for peer-specific use
-// cases (i.e. DeliverFiltered)
-func (pc *PeerClient) PeerDeliver() (api.PeerDeliverClient, error) {
-	logger.Debug("PeerDeliver client  connect to %s", pc.address)
-	conn, err := pc.commonClient.NewConnection(pc.address, pc.sn)
-	if err != nil {
-		return nil, errors.WithMessage(err, fmt.Sprintf("deliver client failed to connect to %s", pc.address))
-	}
-	pbClient := pb.NewDeliverClient(conn)
-	return &common.PeerDeliverClient{Client: pbClient}, nil
-}
-
-// Admin returns a client for the Admin service
-func (pc *PeerClient) Admin() (pb.AdminClient, error) {
-	logger.Debug("admin client  connect to %s", pc.address)
-	conn, err := pc.commonClient.NewConnection(pc.address, pc.sn)
-	if err != nil {
-		return nil, errors.WithMessage(err, fmt.Sprintf("admin client failed to connect to %s", pc.address))
-	}
-	return pb.NewAdminClient(conn), nil
-}
-
-// Certificate returns the TLS client certificate (if available)
-func (pc *PeerClient) Certificate() tls.Certificate {
-	return pc.commonClient.Certificate()
-}
-
-// GetEndorserClient returns a new endorser client. If the both the address and
-// tlsRootCertFile are not provided, the target values for the client are taken
-// from the configuration settings for "peer.address" and
-// "peer.tls.rootcert.file"
-func (peer *OnePeer) GetEndorserClient() (pb.EndorserClient, error) {
-	peerClient, err := peer.NewPeerClientForAddress()
-
-	if err != nil {
-		return nil, err
-	}
-	return peerClient.Endorser()
-}
-
-// GetCertificate returns the client's TLS certificate
-func (peer *OnePeer) GetCertificate() (tls.Certificate, error) {
-	// peerClient, err := NewPeerClientFromEnv()
-	peerClient, err := peer.NewPeerClientForAddress()
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-	return peerClient.Certificate(), nil
-}
-
-// GetAdminClient returns a new admin client.  The target address for
-// the client is taken from the configuration setting "peer.address"
-func (peer *OnePeer) GetAdminClient() (pb.AdminClient, error) {
-	// peerClient, err := NewPeerClientFromEnv()
-	peerClient, err := peer.NewPeerClientForAddress()
-	if err != nil {
-		return nil, err
-	}
-	return peerClient.Admin()
-}
-
-// GetDeliverClient returns a new deliver client. If both the address and
-// tlsRootCertFile are not provided, the target values for the client are taken
-// from the configuration settings for "peer.address" and
-// "peer.tls.rootcert.file"
-func (peer *OnePeer) GetDeliverClient() (pb.Deliver_DeliverClient, error) {
-	var peerClient *PeerClient
-	var err error
-	peerClient, err = peer.NewPeerClientForAddress()
-
-	if err != nil {
-		return nil, err
-	}
-	return peerClient.Deliver()
-}
-
-// GetPeerDeliverClient returns a new deliver client. If both the address and
-// tlsRootCertFile are not provided, the target values for the client are taken
-// from the configuration settings for "peer.address" and
-// "peer.tls.rootcert.file"
-func (peer *OnePeer) GetPeerDeliverClient() (api.PeerDeliverClient, error) {
-	var peerClient *PeerClient
-	var err error
-
-	peerClient, err = peer.NewPeerClientForAddress()
-	if err != nil {
-		return nil, err
-	}
-	return peerClient.PeerDeliver()
-}
-
-var conutpeer = 0
-
-func (peer *OnePeer) GetConfig() (clientConfig comm.ClientConfig, err error) {
-	clientConfig = comm.ClientConfig{}
-	clientConfig.Timeout = peer.PeerClientConnTimeout
-	secOpts := &comm.SecureOptions{
-		UseTLS:            peer.PeerTLS,
-		RequireClientCert: peer.PeerTLSClientAuthRequired,
-	}
-	if secOpts.UseTLS {
-		caPEM, res := ioutil.ReadFile(utils.ConvertToAbsPath(peer.PeerTLSRootCertFile))
-		if res != nil {
-			err = errors.WithMessage(res, "can not load peer root file")
-			return
-		}
-		secOpts.ServerRootCAs = [][]byte{caPEM}
-	}
-	if secOpts.RequireClientCert {
-		path := utils.GetReplaceAbsPath(peer.PeerTLSClientKeyFile, peer.PeerTLSKeyFile)
-		keyPEM, res := ioutil.ReadFile(path)
-		if res != nil {
-			err = errors.WithMessage(res, "unable to load peer.tls.clientKey.file")
-			return
-		}
-		secOpts.Key = keyPEM
-		path = utils.GetReplaceAbsPath(peer.PeerTLSClientCertFile, peer.PeerTLSCertFile)
-		certPEM, res := ioutil.ReadFile(path)
-		if res != nil {
-			err = errors.WithMessage(res, "unable to load peer.tls.clientCert.file")
-			return
-		}
-		secOpts.Certificate = certPEM
-	}
-	clientConfig.SecOpts = secOpts
-
-	logger.Debug("get peer config 第", conutpeer, "次", peer, "connTimeout", peer.PeerClientConnTimeout)
-	conutpeer++
-	return
-}
-
-// PeerDeliverClient holds the necessary information to connect a client
-// to a peer deliver service
-// type PeerDeliverClient struct {
-// 	Client pb.DeliverClient
+// //Certificate returns the TLS client certificate (if available)
+// func (pc *PeerClient) Certificate() tls.Certificate {
+// 	return pc.commonClient.Certificate()
 // }
 
-// // Deliver connects the client to the Deliver RPC
-// func (dc PeerDeliverClient) Deliver(ctx context.Context, opts ...grpc.CallOption) (Deliver, error) {
-// 	d, err := dc.Client.Deliver(ctx, opts...)
-// 	return d, err
+// // Certificate returns the tls.Certificate used to make TLS connections
+// // when client certificates are required by the server
+// func (client *GRPCClient) Certificate() tls.Certificate {
+// 	cert := tls.Certificate{}
+// 	if client.tlsConfig != nil && len(client.tlsConfig.Certificates) > 0 {
+// 		cert = client.tlsConfig.Certificates[0]
+// 	}
+// 	return cert
 // }
 
-// // DeliverFiltered connects the client to the DeliverFiltered RPC
-// func (dc PeerDeliverClient) DeliverFiltered(ctx context.Context, opts ...grpc.CallOption) (Deliver, error) {
-// 	df, err := dc.Client.DeliverFiltered(ctx, opts...)
-// 	return df, err
+func (ps *PeersEnv) NewDeliverGroup(channelID string, txid string) (*deliverGroup, error) {
+
+	//deliverClients []api.PeerDeliverClient, peerAddresses []string, certificate tls.Certificate,
+	var node NodeEnv
+
+	clients := []*deliverClient{}
+	for i, p := range ps.Peers {
+		pbClient := pb.NewDeliverClient(p.Connect)
+
+		client := &common.PeerDeliverClient{Client: pbClient}
+		dc := &deliverClient{
+			Client:  client,
+			Address: p.Address,
+		}
+
+		clients = append(clients, dc)
+		if i == 0 {
+			node = p.NodeEnv
+		}
+	}
+	certificate, err := node.GetCertificate()
+	if err != nil {
+		return nil, err
+	}
+
+	dg := &deliverGroup{
+		Clients:     clients,
+		Certificate: certificate,
+		ChannelID:   channelID,
+		TxID:        txid,
+	}
+
+	return dg, nil
+}
+
+// Connect waits for all deliver clients in the group to connect to
+// the peer's deliver service, receive an error, or for the context
+// to timeout. An error will be returned whenever even a single
+// deliver client fails to connect to its peer
+func (dg *deliverGroup) Connect(ctx context.Context) error {
+	dg.wg.Add(len(dg.Clients))
+	for _, client := range dg.Clients {
+		go dg.ClientConnect(ctx, client)
+	}
+	readyCh := make(chan struct{})
+	go dg.WaitForWG(readyCh)
+
+	select {
+	case <-readyCh:
+		if dg.Error != nil {
+			err := errors.WithMessage(dg.Error, "failed to connect to deliver on all peers")
+			return err
+		}
+	case <-ctx.Done():
+		err := errors.New("timed out waiting for connection to deliver on all peers")
+		return err
+	}
+
+	return nil
+}
+
+// ClientConnect sends a deliver seek info envelope using the
+// provided deliver client, setting the deliverGroup's Error
+// field upon any error
+func (dg *deliverGroup) ClientConnect(ctx context.Context, dc *deliverClient) {
+	defer dg.wg.Done()
+	df, err := dc.Client.DeliverFiltered(ctx)
+	if err != nil {
+		err = errors.WithMessage(err, fmt.Sprintf("error connecting to deliver filtered at %s", dc.Address))
+		dg.setError(err)
+		return
+	}
+	defer df.CloseSend()
+	dc.Connection = df
+
+	envelope := createDeliverEnvelope(dg.ChannelID, dg.Certificate)
+	err = df.Send(envelope)
+	if err != nil {
+		err = errors.WithMessage(err, fmt.Sprintf("error sending deliver seek info envelope to %s", dc.Address))
+		dg.setError(err)
+		return
+	}
+}
+
+// Wait waits for all deliver client connections in the group to
+// either receive a block with the txid, an error, or for the
+// context to timeout
+func (dg *deliverGroup) Wait(ctx context.Context) error {
+	if len(dg.Clients) == 0 {
+		return nil
+	}
+
+	dg.wg.Add(len(dg.Clients))
+	for _, client := range dg.Clients {
+		go dg.ClientWait(client)
+	}
+	readyCh := make(chan struct{})
+	go dg.WaitForWG(readyCh)
+
+	select {
+	case <-readyCh:
+		if dg.Error != nil {
+			err := errors.WithMessage(dg.Error, "failed to receive txid on all peers")
+			return err
+		}
+	case <-ctx.Done():
+		err := errors.New("timed out waiting for txid on all peers")
+		return err
+	}
+
+	return nil
+}
+
+// ClientWait waits for the specified deliver client to receive
+// a block event with the requested txid
+func (dg *deliverGroup) ClientWait(dc *deliverClient) {
+	defer dg.wg.Done()
+	for {
+		resp, err := dc.Connection.Recv()
+
+		if err != nil {
+			err = errors.WithMessage(err, fmt.Sprintf("error receiving from deliver filtered at %s", dc.Address))
+			dg.setError(err)
+			return
+		}
+		switch r := resp.Type.(type) {
+		case *pb.DeliverResponse_FilteredBlock:
+			filteredTransactions := r.FilteredBlock.FilteredTransactions
+			for _, tx := range filteredTransactions {
+				if tx.Txid == dg.TxID {
+					logger.Infof("txid [%s] committed with status (%s) at %s", dg.TxID, tx.TxValidationCode, dc.Address)
+					return
+				}
+			}
+		case *pb.DeliverResponse_Status:
+			err = errors.Errorf("deliver completed with status (%s) before txid received at %s", r.Status, dc.Address)
+			dg.setError(err)
+			return
+		default:
+			err = errors.Errorf("received unexpected response type (%T) from %s", r, dc.Address)
+			dg.setError(err)
+			return
+		}
+	}
+}
+
+// WaitForWG waits for the deliverGroup's wait group and closes
+// the channel when ready
+func (dg *deliverGroup) WaitForWG(readyCh chan struct{}) {
+	dg.wg.Wait()
+	close(readyCh)
+}
+
+// setError serializes an error for the deliverGroup
+func (dg *deliverGroup) setError(err error) {
+	dg.mutex.Lock()
+	dg.Error = err
+	dg.mutex.Unlock()
+}
+
+func createDeliverEnvelope(channelID string, certificate tls.Certificate) *fcommon.Envelope {
+	var tlsCertHash []byte
+	// check for client certificate and create hash if present
+	if len(certificate.Certificate) > 0 {
+		tlsCertHash = utils.ComputeSHA256(certificate.Certificate[0])
+	}
+
+	start := &ab.SeekPosition{
+		Type: &ab.SeekPosition_Newest{
+			Newest: &ab.SeekNewest{},
+		},
+	}
+
+	stop := &ab.SeekPosition{
+		Type: &ab.SeekPosition_Specified{
+			Specified: &ab.SeekSpecified{
+				Number: math.MaxUint64,
+			},
+		},
+	}
+
+	seekInfo := &ab.SeekInfo{
+		Start:    start,
+		Stop:     stop,
+		Behavior: ab.SeekInfo_BLOCK_UNTIL_READY,
+	}
+
+	env, err := protoutils.CreateSignedEnvelopeWithTLSBinding(
+		fcommon.HeaderType_DELIVER_SEEK_INFO, channelID, mspex.NewSigner(),
+		seekInfo, int32(0), uint64(0), tlsCertHash)
+	// env, err := CreateSignedEnvelopeWithTLSBinding(
+	// 	fcommon.HeaderType_DELIVER_SEEK_INFO, channelID, localmsp.NewSigner(),
+	// 	seekInfo, int32(0), uint64(0), tlsCertHash)
+	if err != nil {
+		logger.Errorf("Error signing envelope: %s", err)
+		return nil
+	}
+
+	return env
+}
+
+// GetDeliverClient returns a new deliver client.
+// func (peer *OnePeer) GetDeliverClient() (pb.Deliver_DeliverClient, error) {
+// 	var peerClient *PeerClient
+// 	var err error
+// 	peerClient, err = peer.NewPeerClientForAddress()
+
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return peerClient.Deliver()
 // }

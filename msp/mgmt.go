@@ -21,8 +21,9 @@ import (
 // HOWEVER IN THE INTERIM, THESE HELPER FUNCTIONS ARE REQUIRED
 
 var (
-	m            sync.Mutex
-	localMsp     msp.MSP
+	m        sync.Mutex
+	localMsp msp.MSP
+
 	localMsptype string
 	// var mspMap map[string]msp.MSPManager = make(map[string]msp.MSPManager)
 )
