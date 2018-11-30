@@ -1,14 +1,10 @@
 package peerex
 
 import (
-	"crypto/tls"
 	"hyperledger-fabric-sdk-go/msp"
-	"sync"
 	"time"
 
 	fmsp "github.com/hyperledger/fabric/msp"
-	ccapi "github.com/hyperledger/fabric/peer/chaincode/api"
-	"github.com/hyperledger/fabric/peer/common/api"
 	"google.golang.org/grpc"
 )
 
@@ -86,24 +82,6 @@ type rPCBuilder struct {
 	*msp.MspEnv
 	*OrderEnv
 	*PeersEnv
-}
-
-type deliverGroup struct {
-	Clients     []*deliverClient
-	Certificate tls.Certificate
-	ChannelID   string
-	TxID        string
-	mutex       sync.Mutex
-	Error       error
-	wg          sync.WaitGroup
-}
-
-// deliverClient holds the client/connection related to a specific
-// peer. The address is included for logging purposes
-type deliverClient struct {
-	Client     api.PeerDeliverClient
-	Connection ccapi.Deliver
-	Address    string
 }
 
 func (p *PeersEnv) GetPeerAddresses() []string {

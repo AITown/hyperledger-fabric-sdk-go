@@ -205,7 +205,7 @@ func (c *ChaincodeEnv) creatProposal(Signer fmsp.SigningIdentity, args []string)
 
 	//prop, txid, err := protoutils.CreateChaincodeProposalWithTxIDAndTransient(fcommon.HeaderType_ENDORSER_TRANSACTION, channelID, invocation, creator, "", tMap)
 	prop, txid, err := CreateChaincodeProposalWithTxIDAndTransient(channelID, spec, creator, tMap)
-	logger.Debug(" ChaincodeInvokeOrQuery protoutils.CreateChaincodeProposalWithTxIDAndTransient", txid)
+	logger.Debug(" ChaincodeInvokeOrQuery CreateChaincodeProposalWithTxIDAndTransient", txid)
 	if err != nil {
 		return nil, "", nil, errors.WithMessage(err, "error creating proposal")
 	}
@@ -217,7 +217,7 @@ func (c *ChaincodeEnv) creatProposal(Signer fmsp.SigningIdentity, args []string)
 	if err != nil {
 		return nil, "", nil, errors.WithMessage(err, "error creating signed proposal ")
 	}
-	logger.Debug("ChaincodeInvokeOrQuery protoutils.GetSignedProposal==== success")
+	logger.Debug("ChaincodeInvokeOrQuery GetSignedProposal==== success")
 
 	return signedProp, txid, prop, nil
 }

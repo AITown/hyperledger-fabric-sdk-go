@@ -13,13 +13,11 @@ import (
 	mspex "hyperledger-fabric-sdk-go/msp"
 	"hyperledger-fabric-sdk-go/utils"
 	"math"
+	"sync"
 	"time"
-
-	//"hyperledger-fabric-sdk-go/api"
 
 	"google.golang.org/grpc"
 
-	"github.com/hyperledger/fabric/peer/common"
 	fcommon "github.com/hyperledger/fabric/protos/common"
 	ab "github.com/hyperledger/fabric/protos/orderer"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -39,23 +37,47 @@ type GRPCClient struct {
 	// Maximum message size the client can send
 	maxSendMsgSize int
 }
+type deliverGroup struct {
+	Clients     []*deliverClient
+	Certificate tls.Certificate
+	ChannelID   string
+	TxID        string
+	mutex       sync.Mutex
+	Error       error
+	wg          sync.WaitGroup
+}
+
+// deliverClient holds the client/connection related to a specific
+// peer. The address is included for logging purposes
+type deliverClient struct {
+	// Client     api.PeerDeliverClient
+	// Connection ccapi.Deliver
+	//Client     PeerDeliverClient
+	//Connection api.Deliver
+	Client     pb.DeliverClient
+	Connection pb.Deliver_DeliverClient
+	Address    string
+}
 
 func (peer *PeerEnv) NewEndorserClient() pb.EndorserClient {
 	return pb.NewEndorserClient(peer.Connect)
 }
 
 func (ps *PeersEnv) NewDeliverGroup(channelID string, txid string) (*deliverGroup, error) {
-
-	//deliverClients []api.PeerDeliverClient, peerAddresses []string, certificate tls.Certificate,
 	var node NodeEnv
 
 	clients := []*deliverClient{}
 	for i, p := range ps.Peers {
 		pbClient := pb.NewDeliverClient(p.Connect)
 
-		client := &common.PeerDeliverClient{Client: pbClient}
+		// client := &common.PeerDeliverClient{Client: pbClient}
+		// dc := &deliverClient{
+		// 	Client:  client,
+		// 	Address: p.Address,
+		// }
+		//client := PeerDeliverClient{Client: pbClient}
 		dc := &deliverClient{
-			Client:  client,
+			Client:  pbClient,
 			Address: p.Address,
 		}
 
