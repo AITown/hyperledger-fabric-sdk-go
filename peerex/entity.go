@@ -36,8 +36,6 @@ type NodeEnv struct {
 //OrderEnv 节点的数据
 type OrderEnv struct {
 	NodeEnv
-	// *GRPCClient
-	// fmsp.SigningIdentity
 	// OrdererTLS                   bool   // 是否启用TLS 连接order节点 默认是false
 	// OrdererAddress               string // 如果需要跟order通讯 ，order的地址
 	// OrdererTLSHostnameOverride   string
@@ -52,8 +50,7 @@ type OrderEnv struct {
 
 type PeerEnv struct {
 	NodeEnv
-	// *GRPCClient
-	// fmsp.SigningIdentity
+
 	// PeerAddresses             string //需要连接的peer的地址
 	// PeerTLS                   bool   //是否启用tls
 	// PeerTLSRootCertFile       string //如果启用PeerTLS, 则指向要连接到的peer的TLS根证书文件的路径。指定的证书的顺序和数量应与peerAddresses匹配

@@ -2,18 +2,11 @@ package peerex
 
 import (
 	"context"
-	"fmt"
 
 	cb "github.com/hyperledger/fabric/protos/common"
 	ab "github.com/hyperledger/fabric/protos/orderer"
 	"github.com/pkg/errors"
 )
-
-// OrdererClient represents a client for communicating with an ordering
-// service
-type OrdererClient struct {
-	commonClient
-}
 
 type BroadcastClient interface {
 	//Send data to orderer
@@ -23,16 +16,6 @@ type BroadcastClient interface {
 
 type broadcastClient struct {
 	client ab.AtomicBroadcast_BroadcastClient
-}
-
-// Broadcast returns a broadcast client for the AtomicBroadcast service
-func (oc *OrdererClient) Broadcast(address string, serverNameOverride string) (ab.AtomicBroadcast_BroadcastClient, error) {
-	conn, err := oc.commonClient.NewConnection(address, serverNameOverride)
-	if err != nil {
-		return nil, errors.WithMessage(err, fmt.Sprintf("orderer client failed to connect to %s", address))
-	}
-	// TODO: check to see if we should actually handle error before returning
-	return ab.NewAtomicBroadcastClient(conn).Broadcast(context.TODO())
 }
 
 func (order *OrderEnv) NewBroadcastClient() (BroadcastClient, error) {
