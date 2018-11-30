@@ -16,4 +16,4 @@
    + 一开始初始化msp 密钥信息
    + 创建peer orderer节点的grpc 连接
    + invoke、query 操作
-   + invoke 操作完，可选是否需要各个peer节点回执
+   + invoke 操作完，可选是否需要各个peer节点回执（1.2.X版本后移除）
