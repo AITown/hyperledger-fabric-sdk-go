@@ -27,11 +27,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// PeerClient represents a client for communicating with a peer
-type PeerClient struct {
-	commonClient
-}
-
 type GRPCClient struct {
 	// TLS configuration used by the grpc.ClientConn
 	tlsConfig *tls.Config
@@ -45,80 +40,9 @@ type GRPCClient struct {
 	maxSendMsgSize int
 }
 
-// ClientConfig defines the parameters for configuring a GRPCClient instance
-type ClientConfig struct {
-	// SecOpts defines the security parameters
-	SecOpts *SecureOptions
-	// KaOpts defines the keepalive parameters
-	KaOpts *KeepaliveOptions
-	// Timeout specifies how long the client will block when attempting to
-	// establish a connection
-	Timeout time.Duration
-}
-
-// SecureOptions defines the security parameters (e.g. TLS) for a
-// GRPCServer or GRPCClient instance
-type SecureOptions struct {
-	// PEM-encoded X509 public key to be used for TLS communication
-	Certificate []byte
-	// PEM-encoded private key to be used for TLS communication
-	Key []byte
-	// Set of PEM-encoded X509 certificate authorities used by clients to
-	// verify server certificates
-	ServerRootCAs [][]byte
-	// Set of PEM-encoded X509 certificate authorities used by servers to
-	// verify client certificates
-	ClientRootCAs [][]byte
-	// Whether or not to use TLS for communication
-	UseTLS bool
-	// Whether or not TLS client must present certificates for authentication
-	RequireClientCert bool
-	// CipherSuites is a list of supported cipher suites for TLS
-	CipherSuites []uint16
-}
-
-// KeepaliveOptions is used to set the gRPC keepalive settings for both
-// clients and servers
-type KeepaliveOptions struct {
-	// ClientInterval is the duration after which if the client does not see
-	// any activity from the server it pings the server to see if it is alive
-	ClientInterval time.Duration
-	// ClientTimeout is the duration the client waits for a response
-	// from the server after sending a ping before closing the connection
-	ClientTimeout time.Duration
-	// ServerInterval is the duration after which if the server does not see
-	// any activity from the client it pings the client to see if it is alive
-	ServerInterval time.Duration
-	// ServerTimeout is the duration the server waits for a response
-	// from the client after sending a ping before closing the connection
-	ServerTimeout time.Duration
-	// ServerMinInterval is the minimum permitted time between client pings.
-	// If clients send pings more frequently, the server will disconnect them
-	ServerMinInterval time.Duration
-}
-type commonClient struct {
-	*GRPCClient
-}
-
 func (peer *PeerEnv) NewEndorserClient() pb.EndorserClient {
-
 	return pb.NewEndorserClient(peer.Connect)
 }
-
-// //Certificate returns the TLS client certificate (if available)
-// func (pc *PeerClient) Certificate() tls.Certificate {
-// 	return pc.commonClient.Certificate()
-// }
-
-// // Certificate returns the tls.Certificate used to make TLS connections
-// // when client certificates are required by the server
-// func (client *GRPCClient) Certificate() tls.Certificate {
-// 	cert := tls.Certificate{}
-// 	if client.tlsConfig != nil && len(client.tlsConfig.Certificates) > 0 {
-// 		cert = client.tlsConfig.Certificates[0]
-// 	}
-// 	return cert
-// }
 
 func (ps *PeersEnv) NewDeliverGroup(channelID string, txid string) (*deliverGroup, error) {
 
