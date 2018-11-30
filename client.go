@@ -143,9 +143,7 @@ func invoketest() {
 	r := peerex.NewRpcBuilder()
 	r.Function = "invoke"
 	r.ChaincodeName = "mycc"
-	// r.ChaincodeVersion = "1.0"
 	r.ChannelID = "mychannel"
-	r.WaitForEvent = true
 
 	r.MspID = mspID
 	r.MspType = mspType

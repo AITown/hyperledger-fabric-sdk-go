@@ -141,48 +141,18 @@ func (r *rPCBuilder) ChaincodeInvoke(args []string) (*pb.ProposalResponse, strin
 		}
 		logger.Debug("ChaincodeInvokeOrQuery protoutils.CreateSignedTx 成功")
 
-		var (
-			dg  *deliverGroup
-			ctx context.Context
-		)
-		if c.WaitForEvent {
-			var cancelFunc context.CancelFunc
-			ctx, cancelFunc = context.WithTimeout(context.Background(), c.WaitForEventTimeout)
-			defer cancelFunc()
-			//peerAddress := r.GetPeerAddresses()
-			// padd := rpcCommonDate.GetPeerAddresses()
-			// dg = newDeliverGroup(cf.DeliverClients, peerAddress, cf.Certificate, c.ChannelID, txid)
-			dg, err = r.PeersEnv.NewDeliverGroup(c.ChannelID, txid)
-			if err != nil {
-				return nil, "", err
-			}
-			logger.Debug("ChaincodeInvokeOrQuery newDeliverGroup 成功")
-
-			// connect to deliver service on all peers
-			err = dg.Connect(ctx)
-			if err != nil {
-				return nil, "", err
-			}
-		}
-
 		// send the envelope for ordering  调用BroadcastClient发送给orderer进行排序
 		// r.OrderEnv.NodeEnv.New
 		bc, err := r.OrderEnv.NewBroadcastClient()
 		if err != nil {
 			return proposalResp, "", errors.WithMessage(err, "error sending transaction")
 		}
+		// 发送给orderer
 		if err = bc.Send(env); err != nil {
 			return proposalResp, "", errors.WithMessage(err, "error sending transaction")
 		}
 		defer bc.Close()
-		if dg != nil && ctx != nil {
-			// wait for event that contains the txid from all peers
-			err = dg.Wait(ctx)
-			if err != nil {
-				logger.Debug("invoke success start wait all peer recv")
-				return nil, "", err
-			}
-		}
+
 	}
 	logger.Debug("invoke get txid", txid)
 

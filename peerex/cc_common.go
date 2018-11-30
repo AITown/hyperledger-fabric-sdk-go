@@ -75,9 +75,6 @@ func (r *rPCBuilder) Verify(get bool) error {
 		}
 	}
 
-	if r.WaitForEvent == true && r.WaitForEventTimeout == time.Duration(0) {
-		r.WaitForEventTimeout = defaultTimeout
-	}
 	if len(r.Peers) == 0 {
 		return errors.New("没有任何peer节点信息")
 	}
