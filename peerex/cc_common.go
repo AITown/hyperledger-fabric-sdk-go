@@ -1,9 +1,7 @@
 package peerex
 
 import (
-	"crypto/tls"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	mspex "hyperledger-fabric-sdk-go/msp"
@@ -11,12 +9,10 @@ import (
 
 	"github.com/hyperledger/fabric/common/util"
 	"github.com/hyperledger/fabric/msp"
-	"github.com/hyperledger/fabric/peer/common/api"
 	fcommon "github.com/hyperledger/fabric/protos/common"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	protoutils "github.com/hyperledger/fabric/protos/utils"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -54,14 +50,6 @@ const (
 	ordererTLSClientCertFile     = ordererbase + ".tls.clientCert.file"
 	ordererTLSHostnameOverride   = ordererbase + ".tls.serverhostoverride"
 )
-
-type ChaincodeFactory struct {
-	EndorserClients []pb.EndorserClient
-	DeliverClients  []api.PeerDeliverClient
-	Certificate     tls.Certificate
-	Signer          msp.SigningIdentity
-	BroadcastClient BroadcastClient
-}
 
 //Verify 检查参数正确性 没有的构建默认值
 func (r *rPCBuilder) Verify(get bool) error {
@@ -130,46 +118,6 @@ func (node *NodeEnv) verify() error {
 	return nil
 }
 
-// func (o *OrderEnv) verify() error {
-// 	if o == nil {
-// 		return errors.New("orderer 节点配置不能为空")
-// 	}
-// 	if utils.IsNullOrEmpty(o.OrdererAddress) || utils.IsNullOrEmpty(o.OrdererTLSHostnameOverride) {
-// 		return errors.New("OrdererAddress，OrdererTLSHostnameOverride  不能为空")
-// 	}
-// 	if o.OrdererTLS {
-// 		if utils.IsNullOrEmpty(o.OrdererTLSRootCertFile) {
-// 			return errors.New("OrdererTLSRootCertFile  不能为空")
-// 		}
-// 	}
-
-// 	if o.OrdererConnTimeout == time.Duration(0) {
-// 		o.OrdererConnTimeout = defaultTimeout
-// 	}
-
-// 	logger.Debug("set PeerClientConnTimeout", o.OrdererConnTimeout)
-// 	return nil
-// }
-// func (p *OnePeer) verify() error {
-// 	if p == nil {
-// 		return errors.New("peer 节点配置不能为空")
-// 	}
-// 	if utils.IsNullOrEmpty(p.PeerTLSHostnameOverride) || utils.IsNullOrEmpty(p.PeerAddresses) {
-// 		return errors.New("PeerTLSHostnameOverride,PeerAddresses 不能为空")
-// 	}
-// 	if p.PeerTLS {
-// 		if utils.IsNullOrEmpty(p.PeerTLSRootCertFile) {
-// 			return errors.New("PeerTLSRootCertFile 不能为空")
-// 		}
-// 	}
-// 	if p.PeerClientConnTimeout == time.Duration(0) {
-// 		p.PeerClientConnTimeout = defaultTimeout
-// 	}
-
-// 	logger.Debug("set PeerClientConnTimeout", p.PeerClientConnTimeout)
-// 	return nil
-// }
-
 func InitCrypto(m *mspex.MspEnv) error {
 	// var mspMgrConfigDir = common.GetPath(peerMspConfigPath)
 	// var mspID = viper.GetString(peerLocalMspID)
@@ -230,68 +178,6 @@ func InitWithFile(path string) Handle {
 
 }
 
-//InitConfig 初始化配置变量 暂时不需要
-func (r *rPCBuilder) InitConfig() {
-	logger.Debug("viper.ConfigFileUsed:", filepath.Dir(viper.ConfigFileUsed()))
-
-	//peer
-	//peerAddress  peerTLSRootCertFile peerTLSServerhostOverride 在invoke时不做变化
-	// connttime := viper.GetDuration(peerClientconntimeout)
-
-	// if r.PeerClientConnTimeout != connttime {
-	// 	viper.Set(peerClientconntimeout, r.PeerClientConnTimeout.String())
-	// }
-	// viper.Set(peerTLSEnabled, r.PeerTLS)
-	// viper.Set(peerTLSClientAuthRequired, r.PeerTLSClientAuthRequired)
-	// if r.PeerTLSCertFile != "" {
-	// 	viper.Set(peerTLSCertFile, r.PeerTLSCertFile)
-	// }
-	// if r.PeerTLSKeyFile != "" {
-	// 	viper.Set(peerTLSKeyFile, r.PeerTLSKeyFile)
-	// }
-
-	// if r.PeerTLSClientCertFile != "" {
-	// 	viper.Set(peerTLSClientCertFile, r.PeerTLSClientCertFile)
-	// }
-	// if r.PeerTLSClientKeyFile != "" {
-	// 	viper.Set(peerTLSClientKeyFile, r.PeerTLSClientKeyFile)
-	// }
-	//msp
-	if r.MspID != "" {
-		viper.Set(peerLocalMspID, r.MspID)
-	}
-	if r.MspConfigPath != "" {
-		viper.Set(peerMspConfigPath, r.MspConfigPath)
-	}
-	if r.MspType != "" {
-		viper.Set(peerLocalMspType, r.MspType)
-	}
-
-	//order
-	// connttime = viper.GetDuration(ordererConnTimeout)
-	// if r.OrdererConnTimeout != connttime {
-	// 	viper.Set(ordererConnTimeout, r.OrdererConnTimeout)
-	// }
-	// viper.Set(ordererTLS, r.OrdererTLS)
-	// viper.Set(ordererTLSClientAuthRequired, r.OrdererTLSClientAuthRequired)
-	// if r.OrdererAddress != "" {
-	// 	viper.Set(ordererEndpoint, r.OrdererAddress)
-	// }
-	// if r.OrdererTLSHostnameOverride != "" {
-	// 	viper.Set(ordererTLSHostnameOverride, r.OrdererTLSHostnameOverride)
-	// }
-	// if r.OrdererTLSClientCertFile != "" {
-	// 	viper.Set(ordererTLSClientCertFile, r.OrdererTLSClientCertFile)
-	// }
-	// if r.OrdererTLSClientKeyFile != "" {
-	// 	viper.Set(ordererTLSClientKeyFile, r.OrdererTLSClientKeyFile)
-	// }
-	// if r.OrdererTLSRootCertFile != "" {
-	// 	viper.Set(ordererTLSRootCertFile, r.OrdererTLSRootCertFile)
-	// }
-
-}
-
 //InitFactory 初始化chaincode命令工厂
 func (r *rPCBuilder) InitConn(isOrdererRequired bool) error {
 
@@ -326,69 +212,6 @@ func (r *rPCBuilder) InitConn(isOrdererRequired bool) error {
 	return nil
 }
 
-// //InitFactory 初始化chaincode命令工厂
-// func (r *rPCBuilder) InitFactory(isOrdererRequired bool) (*ChaincodeFactory, error) {
-// 	var (
-// 		err             error
-// 		endorserClients []pb.EndorserClient
-// 		deliverClients  []api.PeerDeliverClient
-// 	)
-// 	logger.Debug("========InitFactory start:============")
-// 	for _, peer := range r.Peers {
-// 		//error getting endorser client for query: endorser client failed to connect to
-// 		//path: failed to create new connection: context deadline exceeded
-// 		logger.Debug("common.GetEndorserClientFnc override:", peer.HostnameOverride)
-// 		endorserClient, err := peer.GetEndorserClient()
-// 		if err != nil {
-// 			return nil, errors.WithMessage(err, fmt.Sprintf("error getting endorser client "))
-// 		}
-// 		//背书请求 每一个peer会创建一个 调用endorserClients.ProcessProposal执行invoke query
-// 		endorserClients = append(endorserClients, endorserClient)
-
-// 		deliverClient, err := peer.GetPeerDeliverClient()
-// 		if err != nil {
-// 			return nil, errors.WithMessage(err, fmt.Sprintf("error getting deliver client "))
-// 		}
-// 		deliverClients = append(deliverClients, deliverClient)
-// 	}
-
-// 	if len(endorserClients) == 0 {
-// 		return nil, errors.New("no endorser clients retrieved - this might indicate a bug")
-// 	}
-
-// 	peer := r.Peers[0]
-// 	certificate, err := peer.GetCertificate()
-// 	if err != nil {
-// 		return nil, errors.WithMessage(err, "error getting client cerificate")
-// 	}
-
-// 	//signer, err := GetDefaultSignerFnc()
-// 	signer, err := mspex.GetSigningIdentity()
-// 	if err != nil {
-// 		return nil, errors.WithMessage(err, "error getting default signer")
-// 	}
-
-// 	var broadcastClient BroadcastClient
-// 	// 如果需要跟orderer通信，那么创建跟orderer交互的BroadcastClient。
-// 	if isOrdererRequired {
-// 		logger.Debug("----开始根据环境变量构建:GetBroadcastClientFnc")
-// 		broadcastClient, err = r.OrderEnv.GetBroadcastClient()
-
-// 		if err != nil {
-// 			return nil, errors.WithMessage(err, "error getting broadcast client")
-// 		}
-// 	}
-
-// 	// 根据上面获得信息组装ChaincodeCmdFactory返回
-// 	return &ChaincodeFactory{
-// 		EndorserClients: endorserClients,
-// 		DeliverClients:  deliverClients,
-// 		Signer:          signer,
-// 		BroadcastClient: broadcastClient,
-// 		Certificate:     certificate,
-// 	}, nil
-// }
-
 // getChaincodeSpec get chaincode spec from the  pramameters
 func (cc *ChaincodeEnv) getChaincodeSpec(args []string) *pb.ChaincodeSpec {
 	spec := &pb.ChaincodeSpec{}
@@ -410,26 +233,6 @@ func (cc *ChaincodeEnv) getChaincodeSpec(args []string) *pb.ChaincodeSpec {
 	}
 	return spec
 }
-
-// func newDeliverGroup(deliverClients []api.PeerDeliverClient, peerAddresses []string, certificate tls.Certificate, channelID string, txid string) *deliverGroup {
-// 	clients := make([]*deliverClient, len(deliverClients))
-// 	for i, client := range deliverClients {
-// 		dc := &deliverClient{
-// 			Client:  client,
-// 			Address: peerAddresses[i],
-// 		}
-// 		clients[i] = dc
-// 	}
-
-// 	dg := &deliverGroup{
-// 		Clients:     clients,
-// 		Certificate: certificate,
-// 		ChannelID:   channelID,
-// 		TxID:        txid,
-// 	}
-
-// 	return dg
-// }
 
 // CreateChaincodeProposalWithTxIDAndTransient creates a proposal from given input
 // It returns the proposal and the transaction id associated to the proposal

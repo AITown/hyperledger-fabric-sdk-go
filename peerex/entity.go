@@ -69,7 +69,6 @@ type PeerEnv struct {
 //PeerEnv 节点的数据
 type PeersEnv struct {
 	Peers []*PeerEnv
-
 	//peerBccspSwFileKeyStoreKeyStore string
 }
 

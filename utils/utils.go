@@ -32,11 +32,6 @@ func GetReplaceAbsPath(raw, rep string) string {
 	return ConvertToAbsPath(raw)
 }
 
-// func StringToTimeDuration(str string) {
-// 	return time.ParseDuration(str)
-
-// }
-
 func ReadCert(path string) ([]byte, error) {
 	var (
 		b   []byte

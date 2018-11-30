@@ -45,10 +45,6 @@ func (r *rPCBuilder) Query(args []string) (string, error) {
 		return "", err
 	}
 
-	// cf, err := r.InitFactory(false)
-	// if err != nil {
-	// 	return "", err
-	// }
 	err = r.InitConn(false)
 	if err != nil {
 		return "", err
@@ -69,10 +65,7 @@ func (r *rPCBuilder) Invoke(args []string) (string, error) {
 	}
 	// r.InitConfig()
 	InitCrypto(r.MspEnv)
-	// cf, err := r.InitFactory(true)
-	// if err != nil {
-	// 	return "", err
-	// }
+
 	err := r.InitConn(true)
 	if err != nil {
 		return "", err
@@ -228,52 +221,3 @@ func (c *ChaincodeEnv) creatProposal(Signer fmsp.SigningIdentity, args []string)
 
 	return signedProp, txid, prop, nil
 }
-
-// func (c *ChaincodeEnv) execute(cf *ChaincodeFactory, args []string) ([]*pb.ProposalResponse, string, *pb.Proposal, error) {
-// 	var (
-// 		responses []*pb.ProposalResponse
-// 		tMap      map[string][]byte
-// 		channelID = c.ChannelID
-// 		spec      = c.getChaincodeSpec(args)
-// 	)
-
-// 	// Build the ChaincodeInvocationSpec message 创建chaincode执行描述结构，创建proposal
-// 	// invocation := &pb.ChaincodeInvocationSpec{ChaincodeSpec: spec}
-
-// 	creator, err := cf.Signer.Serialize()
-// 	if err != nil {
-// 		return nil, "", nil, errors.WithMessage(err, fmt.Sprintf("error serializing identity for %s", cf.Signer.GetIdentifier()))
-// 	}
-
-// 	//prop, txid, err := protoutils.CreateChaincodeProposalWithTxIDAndTransient(fcommon.HeaderType_ENDORSER_TRANSACTION, channelID, invocation, creator, "", tMap)
-// 	prop, txid, err := CreateChaincodeProposalWithTxIDAndTransient(channelID, spec, creator, tMap)
-// 	logger.Debug(" ChaincodeInvokeOrQuery protoutils.CreateChaincodeProposalWithTxIDAndTransient", txid)
-// 	if err != nil {
-// 		return nil, "", nil, errors.WithMessage(err, "error creating proposal")
-// 	}
-
-// 	//对proposal签名
-// 	//signedProp, err := protoutils.GetSignedProposal(prop, cf.Signer)
-// 	signedProp, err := GetSignedProposal(prop, cf.Signer)
-// 	if err != nil {
-// 		return nil, "", nil, errors.WithMessage(err, "error creating signed proposal ")
-// 	}
-
-// 	logger.Debug("ChaincodeInvokeOrQuery protoutils.GetSignedProposal==== success")
-// 	for _, endorser := range cf.EndorserClients {
-// 		//使用grpc调用endorserClient.ProcessProposal，触发endorer执行proposal  调用invoke query
-// 		proposalResp, err := endorser.ProcessProposal(context.Background(), signedProp)
-// 		if err != nil {
-// 			return nil, "", nil, errors.WithMessage(err, "error endorsing ")
-// 		}
-
-// 		responses = append(responses, proposalResp)
-// 	}
-
-// 	if len(responses) == 0 {
-// 		// this should only happen if some new code has introduced a bug
-// 		return nil, "", nil, errors.New("no proposal responses received - this might indicate a bug")
-// 	}
-// 	logger.Debug("execute get txid", txid)
-// 	return responses, txid, prop, nil
-// }
