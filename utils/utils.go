@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"errors"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,4 +30,24 @@ func GetReplaceAbsPath(raw, rep string) string {
 		return ConvertToAbsPath(rep)
 	}
 	return ConvertToAbsPath(raw)
+}
+
+// func StringToTimeDuration(str string) {
+// 	return time.ParseDuration(str)
+
+// }
+
+func ReadCert(path string) ([]byte, error) {
+	var (
+		b   []byte
+		err error
+	)
+	if !IsNullOrEmpty(path) {
+		path = ConvertToAbsPath(path)
+		b, err = ioutil.ReadFile(path)
+	}
+	if err != nil {
+		return b, errors.New("can not load cert file ")
+	}
+	return b, err
 }

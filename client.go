@@ -15,7 +15,7 @@ import (
 const (
 	//baseAddr = "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/"
 	baseAddr    = "/home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/"
-	peerAddress = "0.0.0.0:7051"
+	peerAddress = "127.0.0.1:7051"
 	//peerAddress                     = "peer0.org1.example.com:7051"
 	peerTLSRootCertFile             = baseAddr + "peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt"
 	peerClientconntimeout           = "30s"
@@ -109,17 +109,17 @@ func querytest() {
 	// r.ChaincodeVersion = "1.0"
 	r.ChannelID = "mychannel"
 
-	p := &peerex.OnePeer{}
+	p := &peerex.PeerEnv{}
 
-	p.PeerAddresses = peerAddress
-	p.PeerTLSRootCertFile = peerTLSRootCertFile
+	p.Address = peerAddress
+	p.HostnameOverride = peerTLSServerhostOverride
 
-	p.PeerTLS = peerTLSEnabled
-	p.PeerTLSHostnameOverride = peerTLSServerhostOverride
+	p.TLS = peerTLSEnabled
+	p.RootCertFile = peerTLSRootCertFile
 
-	p.PeerTLSClientAuthRequired = peerTLSClientAuthRequired
-	p.PeerTLSKeyFile = peerTLSKeyFile
-	p.PeerTLSCertFile = peerTLSCertFile
+	p.TLSClient = peerTLSClientAuthRequired
+	p.KeyFile = peerTLSKeyFile
+	p.CertFile = peerTLSCertFile
 
 	r.Peers = append(r.Peers, p)
 	r.MspID = mspID
@@ -151,42 +151,42 @@ func invoketest() {
 	r.MspType = mspType
 	r.MspConfigPath = mspConfigPath
 
-	p1 := &peerex.OnePeer{}
+	p1 := &peerex.PeerEnv{}
 
-	p1.PeerAddresses = peerAddress
-	p1.PeerTLSHostnameOverride = peerTLSServerhostOverride
+	p1.Address = peerAddress
+	p1.HostnameOverride = peerTLSServerhostOverride
 
-	p1.PeerTLS = peerTLSEnabled
-	p1.PeerTLSRootCertFile = peerTLSRootCertFile
+	p1.TLS = peerTLSEnabled
+	p1.RootCertFile = peerTLSRootCertFile
 
-	p1.PeerTLSClientAuthRequired = peerTLSClientAuthRequired
-	p1.PeerTLSKeyFile = peerTLSKeyFile
-	p1.PeerTLSCertFile = peerTLSCertFile
+	p1.TLSClient = peerTLSClientAuthRequired
+	p1.KeyFile = peerTLSKeyFile
+	p1.CertFile = peerTLSCertFile
 
-	p2 := &peerex.OnePeer{}
+	p2 := &peerex.PeerEnv{}
 
-	p2.PeerAddresses = peerAddress1
-	p2.PeerTLSHostnameOverride = peerTLSServerhostOverride1
+	p2.Address = peerAddress1
+	p2.HostnameOverride = peerTLSServerhostOverride1
 
-	p2.PeerTLS = peerTLSEnabled
-	p2.PeerTLSRootCertFile = peerTLSRootCertFile1
+	p2.TLS = peerTLSEnabled
+	p2.RootCertFile = peerTLSRootCertFile1
 
-	p2.PeerTLSClientAuthRequired = peerTLSClientAuthRequired
-	p2.PeerTLSKeyFile = peerTLSKeyFile1
-	p2.PeerTLSCertFile = peerTLSCertFile1
+	p2.TLSClient = peerTLSClientAuthRequired
+	p2.KeyFile = peerTLSKeyFile1
+	p2.CertFile = peerTLSCertFile1
 
 	r.Peers = append(r.Peers, p1, p2)
 
-	r.OrdererAddress = ordererEndpoint
-	r.OrdererTLSHostnameOverride = ordererTLSHostnameOverride
-	r.OrdererConnTimeout = ordererConnTimeout
+	r.Address = ordererEndpoint
+	r.HostnameOverride = ordererTLSHostnameOverride
+	r.ConnTimeout = ordererConnTimeout
 
-	r.OrdererTLS = ordererTLS
-	r.OrdererTLSRootCertFile = ordererTLSRootCertFile
+	r.TLS = ordererTLS
+	r.RootCertFile = ordererTLSRootCertFile
 
-	r.OrdererTLSClientAuthRequired = ordererTLSClientAuthRequired
-	r.OrdererTLSKeyFile = ordererTLSKeyFile
-	r.OrdererTLSCertFile = ordererTLSCertFile
+	r.TLSClient = ordererTLSClientAuthRequired
+	r.KeyFile = ordererTLSKeyFile
+	r.CertFile = ordererTLSCertFile
 	// r.OrdererTLSClientKeyFile = ordererTLSClientKeyFile
 	// r.OrdererTLSClientCertFile = ordererTLSClientCertFile
 

@@ -3,10 +3,8 @@ package peerex
 import (
 	"context"
 	"fmt"
-	"hyperledger-fabric-sdk-go/utils"
-	"io/ioutil"
 
-	"github.com/hyperledger/fabric/core/comm"
+	cb "github.com/hyperledger/fabric/protos/common"
 	ab "github.com/hyperledger/fabric/protos/orderer"
 	"github.com/pkg/errors"
 )
@@ -17,78 +15,58 @@ type OrdererClient struct {
 	commonClient
 }
 
-func (order *OrderEnv) NewordererClientForAddress() (*OrdererClient, error) {
-	// _, _, clientConfig, err := configFromEnv("orderer")
-	clientConfig, err := order.GetConfig()
-	if err != nil {
-		return nil, errors.WithMessage(err, "failed to load config for OrdererClient")
-	}
-	return order.newOrdererClientForClientConfig(clientConfig)
+type BroadcastClient interface {
+	//Send data to orderer
+	Send(env *cb.Envelope) error
+	Close() error
 }
 
-func (order *OrderEnv) newOrdererClientForClientConfig(clientConfig comm.ClientConfig) (*OrdererClient, error) {
-	address := order.OrdererAddress
-	override := order.OrdererTLSHostnameOverride
-	gClient, err := comm.NewGRPCClient(clientConfig)
-	if err != nil {
-		return nil, errors.WithMessage(err, "failed to create OrdererClient from config")
-	}
-	oClient := &OrdererClient{
-		commonClient: commonClient{
-			GRPCClient: gClient,
-			address:    address,
-			sn:         override}}
-	return oClient, nil
+type broadcastClient struct {
+	client ab.AtomicBroadcast_BroadcastClient
 }
 
 // Broadcast returns a broadcast client for the AtomicBroadcast service
-func (oc *OrdererClient) Broadcast() (ab.AtomicBroadcast_BroadcastClient, error) {
-	conn, err := oc.commonClient.NewConnection(oc.address, oc.sn)
+func (oc *OrdererClient) Broadcast(address string, serverNameOverride string) (ab.AtomicBroadcast_BroadcastClient, error) {
+	conn, err := oc.commonClient.NewConnection(address, serverNameOverride)
 	if err != nil {
-		return nil, errors.WithMessage(err, fmt.Sprintf("orderer client failed to connect to %s", oc.address))
+		return nil, errors.WithMessage(err, fmt.Sprintf("orderer client failed to connect to %s", address))
 	}
 	// TODO: check to see if we should actually handle error before returning
 	return ab.NewAtomicBroadcastClient(conn).Broadcast(context.TODO())
 }
 
-var countorder = 1
+func (order *OrderEnv) NewBroadcastClient() (BroadcastClient, error) {
 
-func (order *OrderEnv) GetConfig() (clientConfig comm.ClientConfig, err error) {
-	clientConfig = comm.ClientConfig{}
-
-	clientConfig.Timeout = order.OrdererConnTimeout
-	secOpts := &comm.SecureOptions{
-		UseTLS:            order.OrdererTLS,
-		RequireClientCert: order.OrdererTLSClientAuthRequired,
+	bc, err := ab.NewAtomicBroadcastClient(order.Connect).Broadcast(context.TODO())
+	if err != nil {
+		return nil, err
 	}
-	if secOpts.UseTLS {
-		caPEM, res := ioutil.ReadFile(utils.ConvertToAbsPath(order.OrdererTLSRootCertFile))
-		if res != nil {
-			err = errors.WithMessage(res, "unable to load orderer.tls.rootcert.file")
-			return
-		}
-		secOpts.ServerRootCAs = [][]byte{caPEM}
-	}
-	if secOpts.RequireClientCert {
-		path := utils.GetReplaceAbsPath(order.OrdererTLSClientKeyFile, order.OrdererTLSKeyFile)
-		keyPEM, res := ioutil.ReadFile(path)
-		if res != nil {
-			err = errors.WithMessage(res, "unable to load orderer.tls.clientKey.file")
-			return
-		}
-		secOpts.Key = keyPEM
-		path = utils.GetReplaceAbsPath(order.OrdererTLSClientCertFile, order.OrdererTLSCertFile)
-		certPEM, res := ioutil.ReadFile(path)
-		if res != nil {
-			err = errors.WithMessage(res, "unable to load orderer.tls.clientCert.file")
 
-			return
-		}
-		secOpts.Certificate = certPEM
-	}
-	clientConfig.SecOpts = secOpts
+	return &broadcastClient{client: bc}, nil
+}
 
-	logger.Debug("orderer GetConfig  第", countorder, "次", order, "connTimeout", order.OrdererConnTimeout)
-	countorder++
-	return
+func (s *broadcastClient) getAck() error {
+	msg, err := s.client.Recv()
+	if err != nil {
+		return err
+	}
+	if msg.Status != cb.Status_SUCCESS {
+		return errors.Errorf("got unexpected status: %v -- %s", msg.Status, msg.Info)
+	}
+	return nil
+}
+
+//Send data to orderer
+func (s *broadcastClient) Send(env *cb.Envelope) error {
+	if err := s.client.Send(env); err != nil {
+		return errors.WithMessage(err, "could not send")
+	}
+
+	err := s.getAck()
+
+	return err
+}
+
+func (s *broadcastClient) Close() error {
+	return s.client.CloseSend()
 }
