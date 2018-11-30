@@ -28,10 +28,6 @@
   name = "github.com/hyperledger/fabric"
   revision = "cae2ad4456914adffcb07b1ca873e9624ce8f8b3"
 
-# [[constraint]]
-#   name = "github.com/hyperledger/fabric-amcl"
-#   revision = "ea8d504acd07754482414591d1ae105ff448dea2"
-
 [[constraint]]
   branch="master"
   name = "github.com/op/go-logging"
