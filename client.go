@@ -117,9 +117,9 @@ func querytest() {
 	p.TLS = peerTLSEnabled
 	p.RootCertFile = peerTLSRootCertFile
 
-	p.TLSClient = peerTLSClientAuthRequired
-	p.KeyFile = peerTLSKeyFile
-	p.CertFile = peerTLSCertFile
+	// p.TLSClient = peerTLSClientAuthRequired
+	// p.KeyFile = peerTLSKeyFile
+	// p.CertFile = peerTLSCertFile
 
 	r.Peers = append(r.Peers, p)
 	r.MspID = mspID
@@ -157,9 +157,9 @@ func invoketest() {
 	p1.TLS = peerTLSEnabled
 	p1.RootCertFile = peerTLSRootCertFile
 
-	p1.TLSClient = peerTLSClientAuthRequired
-	p1.KeyFile = peerTLSKeyFile
-	p1.CertFile = peerTLSCertFile
+	// p1.TLSClient = peerTLSClientAuthRequired
+	// p1.KeyFile = peerTLSKeyFile
+	// p1.CertFile = peerTLSCertFile
 
 	p2 := &peerex.PeerEnv{}
 
@@ -169,9 +169,9 @@ func invoketest() {
 	p2.TLS = peerTLSEnabled
 	p2.RootCertFile = peerTLSRootCertFile1
 
-	p2.TLSClient = peerTLSClientAuthRequired
-	p2.KeyFile = peerTLSKeyFile1
-	p2.CertFile = peerTLSCertFile1
+	// p2.TLSClient = peerTLSClientAuthRequired
+	// p2.KeyFile = peerTLSKeyFile1
+	// p2.CertFile = peerTLSCertFile1
 
 	r.Peers = append(r.Peers, p1, p2)
 
@@ -182,9 +182,9 @@ func invoketest() {
 	r.TLS = ordererTLS
 	r.RootCertFile = ordererTLSRootCertFile
 
-	r.TLSClient = ordererTLSClientAuthRequired
-	r.KeyFile = ordererTLSKeyFile
-	r.CertFile = ordererTLSCertFile
+	// r.TLSClient = ordererTLSClientAuthRequired
+	// r.KeyFile = ordererTLSKeyFile
+	// r.CertFile = ordererTLSCertFile
 	// r.OrdererTLSClientKeyFile = ordererTLSClientKeyFile
 	// r.OrdererTLSClientCertFile = ordererTLSClientCertFile
 

@@ -195,7 +195,7 @@ func (r *rPCBuilder) InitConn(isOrdererRequired bool) error {
 			return err
 		}
 
-		logger.Debug("----order grpc conn----")
+		logger.Debugf("----peer[%d] grpc conn----", i)
 	}
 
 	if isOrdererRequired {
