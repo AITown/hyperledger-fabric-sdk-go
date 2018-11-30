@@ -2,14 +2,7 @@ package utils
 
 import (
 	"crypto/rand"
-
-	"github.com/hyperledger/fabric/common/util"
 )
-
-// ComputeSHA256 returns SHA2-256 on data
-func ComputeSHA256(data []byte) (hash []byte) {
-	return util.ComputeSHA256(data)
-}
 
 const (
 	// NonceSize is the default NonceSize
