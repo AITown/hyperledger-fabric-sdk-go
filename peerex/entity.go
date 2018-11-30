@@ -21,10 +21,6 @@ type NodeEnv struct {
 	TLS          bool // 是否启用TLS 连接节点 默认是false
 	RootCertFile string
 
-	// TLSClient bool // 默认是false,如果是true,则需要KeyFile   CertFile 的值
-	// CertFile  string
-	// KeyFile   string
-
 	Connect *grpc.ClientConn
 }
 
