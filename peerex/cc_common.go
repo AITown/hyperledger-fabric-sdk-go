@@ -324,9 +324,9 @@ func GetSignedProposal(prop *pb.Proposal, signer msp.SigningIdentity) (*pb.Signe
 
 // Serialize returns a byte array representation of this identity
 // func (id *identity) Serialize() ([]byte, error) {
-// 	// mspIdentityLogger.Infof("Serializing identity %s", id.id)
 // 	fmt.Println(`F:\virtualMachineShare\src\github.com\hyperledger\fabric\msp\identities.go Serialize()`, id.id.Mspid)
 // 	pb := &pem.Block{Bytes: id.cert.Raw, Type: "CERTIFICATE"}
+// 应该是msp/signcerts 的读取
 // 	pemBytes := pem.EncodeToMemory(pb)
 // 	if pemBytes == nil {
 // 		return nil, errors.New("encoding of identity failed")
@@ -340,4 +340,30 @@ func GetSignedProposal(prop *pb.Proposal, signer msp.SigningIdentity) (*pb.Signe
 // 	}
 
 // 	return idBytes, nil
+// }
+
+// Sign produces a signature over msg, signed by this instance
+// func (id *signingidentity) Sign(msg []byte) ([]byte, error) {
+// 	//mspIdentityLogger.Infof("Signing message")
+// 	//fmt.Println(`F:\virtualMachineShare\src\github.com\hyperledger\fabric\msp\identities`)
+// 	// Compute Hash
+// 	hashOpt, err := id.getHashOpt(id.msp.cryptoConfig.SignatureHashFamily)
+// 	if err != nil {
+// 		return nil, errors.WithMessage(err, "failed getting hash function options")
+// 	}
+
+// 	digest, err := id.msp.bccsp.Hash(msg, hashOpt)
+// 	if err != nil {
+// 		return nil, errors.WithMessage(err, "failed computing digest")
+// 	}
+
+// 	if len(msg) < 32 {
+// 		mspIdentityLogger.Debugf("Sign: plaintext: %X \n", msg)
+// 	} else {
+// 		mspIdentityLogger.Debugf("Sign: plaintext: %X...%X \n", msg[0:16], msg[len(msg)-16:])
+// 	}
+// 	mspIdentityLogger.Debugf("Sign: digest: %X \n", digest)
+
+// 	// Sign
+// 	return id.signer.Sign(rand.Reader, digest, nil)
 // }

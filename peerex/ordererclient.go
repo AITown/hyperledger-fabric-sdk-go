@@ -28,7 +28,12 @@ func (order *OrderEnv) NewBroadcastClient() (BroadcastClient, error) {
 	return &broadcastClient{client: bc}, nil
 }
 
-func (s *broadcastClient) getAck() error {
+//Send data to orderer
+func (s *broadcastClient) Send(env *cb.Envelope) error {
+	if err := s.client.Send(env); err != nil {
+		return errors.WithMessage(err, "could not send")
+	}
+
 	msg, err := s.client.Recv()
 	if err != nil {
 		return err
@@ -37,17 +42,6 @@ func (s *broadcastClient) getAck() error {
 		return errors.Errorf("got unexpected status: %v -- %s", msg.Status, msg.Info)
 	}
 	return nil
-}
-
-//Send data to orderer
-func (s *broadcastClient) Send(env *cb.Envelope) error {
-	if err := s.client.Send(env); err != nil {
-		return errors.WithMessage(err, "could not send")
-	}
-
-	err := s.getAck()
-
-	return err
 }
 
 func (s *broadcastClient) Close() error {

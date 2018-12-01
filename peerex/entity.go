@@ -8,11 +8,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// const (
-// 	Query = iota
-// 	Invoke
-// )
-
 type NodeEnv struct {
 	Address          string
 	HostnameOverride string

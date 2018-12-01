@@ -125,7 +125,6 @@ func (r *rPCBuilder) ChaincodeInvoke(args []string) (*pb.ProposalResponse, strin
 	}
 	// all responses will be checked when the signed transaction is created.
 	// for now, just set this so we check the first response's status
-
 	proposalResp := responses[0]
 	//得到proposalResponse，如果是查询类命令直接返回结果；
 	//如果是执行交易类，需要对交易签名CreateSignedTx，然后调用BroadcastClient发送给orderer进行排序，返回response
@@ -159,7 +158,7 @@ func (r *rPCBuilder) ChaincodeInvoke(args []string) (*pb.ProposalResponse, strin
 	return proposalResp, txid, nil
 }
 
-func (c *ChaincodeEnv) creatProposal(Signer fmsp.SigningIdentity, args []string) (*pb.SignedProposal, string, *pb.Proposal, error) {
+func (c *ChaincodeEnv) creatProposal(signer fmsp.SigningIdentity, args []string) (*pb.SignedProposal, string, *pb.Proposal, error) {
 	var (
 		tMap      map[string][]byte
 		channelID = c.ChannelID
@@ -168,9 +167,9 @@ func (c *ChaincodeEnv) creatProposal(Signer fmsp.SigningIdentity, args []string)
 
 	// Build the ChaincodeInvocationSpec message 创建chaincode执行描述结构，创建proposal
 	// invocation := &pb.ChaincodeInvocationSpec{ChaincodeSpec: spec}
-	creator, err := Signer.Serialize()
+	creator, err := signer.Serialize()
 	if err != nil {
-		return nil, "", nil, errors.WithMessage(err, fmt.Sprintf("error serializing identity for %s", Signer.GetIdentifier()))
+		return nil, "", nil, errors.WithMessage(err, fmt.Sprintf("error serializing identity for %s", signer.GetIdentifier()))
 	}
 
 	//prop, txid, err := protoutils.CreateChaincodeProposalWithTxIDAndTransient(fcommon.HeaderType_ENDORSER_TRANSACTION, channelID, invocation, creator, "", tMap)
@@ -182,7 +181,7 @@ func (c *ChaincodeEnv) creatProposal(Signer fmsp.SigningIdentity, args []string)
 
 	//对proposal签名
 	//signedProp, err := protoutils.GetSignedProposal(prop, cf.Signer)
-	signedProp, err := GetSignedProposal(prop, Signer)
+	signedProp, err := GetSignedProposal(prop, signer)
 
 	if err != nil {
 		return nil, "", nil, errors.WithMessage(err, "error creating signed proposal ")

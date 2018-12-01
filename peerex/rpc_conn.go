@@ -9,15 +9,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// var (
-// 	// Max send and receive bytes for grpc clients and servers
-// 	MaxRecvMsgSize = 100 * 1024 * 1024
-// 	MaxSendMsgSize = 100 * 1024 * 1024
-// 	// Default peer keepalive options
-// 	ClientInterval = time.Duration(1) * time.Minute  // 1 min
-// 	ClientTimeout  = time.Duration(20) * time.Second // 20 sec - gRPC default
-// )
-
+//ClientConn rpc 连接
 func (node *NodeEnv) ClientConn() error {
 	conn, err := node.grpcConnection()
 	if err != nil {
@@ -27,7 +19,7 @@ func (node *NodeEnv) ClientConn() error {
 	return nil
 }
 
-//最简化版的连接
+//简化版的连接
 func (node *NodeEnv) grpcConnection() (*grpc.ClientConn, error) {
 	logger.Debug("创建grpc 连接")
 	var dialOpts []grpc.DialOption
