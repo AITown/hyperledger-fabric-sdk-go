@@ -48,7 +48,7 @@ func (m *MspEnv) InitCrypto() (*factory.FactoryOpts, error) {
 	}
 
 	// // Init the BCCSP
-	SetBCCSPKeystorePath()
+	// SetBCCSPKeystorePath()
 	// var bccspConfig *factory.FactoryOpts
 	//	err = viperutil.EnhancedExactUnmarshalKey("peer.BCCSP", &bccspConfig)
 

@@ -183,15 +183,16 @@ func (r *rPCBuilder) InitConn(isOrdererRequired bool) error {
 	//error getting endorser client for query: endorser client failed to connect to
 	//path: failed to create new connection: context deadline exceeded
 	// logger.Debug("common.GetEndorserClientFnc override:", node.HostnameOverride)
-	signer, err := mspex.GetSigningIdentity()
-	r.ChaincodeEnv.Signer = signer
-	if err != nil {
-		return errors.WithMessage(err, "error getting default signer")
-	}
+	// signer, err := mspex.GetSigningIdentity()
+	// if err != nil {
+	// 	return errors.WithMessage(err, "error getting default signer")
+	// }
+	// r.ChaincodeEnv.Signer = signer
 
 	for i := 0; i < len(r.Peers); i++ {
 		err := r.Peers[i].ClientConn()
 		if err != nil {
+			logger.Debugf("----peer[%d] grpc conn err----", err)
 			return err
 		}
 

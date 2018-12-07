@@ -3,6 +3,7 @@ package peerex
 import (
 	"context"
 	"fmt"
+	mspex "hyperledger-fabric-sdk-go/msp"
 	"hyperledger-fabric-sdk-go/utils"
 
 	fmsp "github.com/hyperledger/fabric/msp"
@@ -40,15 +41,20 @@ func (r *rPCBuilder) Query(args []string) (string, error) {
 	}
 
 	// r.InitConfig()
-	err = InitCrypto(r.MspEnv)
-	if err != nil {
-		return "", err
-	}
 
 	err = r.InitConn(false)
 	if err != nil {
 		return "", err
 	}
+	err = InitCrypto(r.MspEnv)
+	if err != nil {
+		return "", err
+	}
+	// signer, err := mspex.GetSigningIdentity()
+	// if err != nil {
+	// 	return "", errors.WithMessage(err, "error getting default signer")
+	// }
+	//r.ChaincodeEnv.Signer = signer
 	pb, err := r.ChaincodeQuery(args)
 	if err != nil {
 		return "", nil
@@ -64,12 +70,18 @@ func (r *rPCBuilder) Invoke(args []string) (string, error) {
 		return "", err
 	}
 	// r.InitConfig()
-	InitCrypto(r.MspEnv)
+	// InitCrypto(r.MspEnv)
 
 	err := r.InitConn(true)
 	if err != nil {
 		return "", err
 	}
+
+	err = InitCrypto(r.MspEnv)
+	if err != nil {
+		return "", err
+	}
+
 	// defer cf.BroadcastClient.Close()
 
 	_, txid, err := r.ChaincodeInvoke(args)
@@ -83,7 +95,11 @@ func (r *rPCBuilder) Invoke(args []string) (string, error) {
 func (r *rPCBuilder) ChaincodeQuery(args []string) (*pb.ProposalResponse, error) {
 	peer := r.Peers[0]
 	c := r.ChaincodeEnv
-	signedProp, _, _, err := c.creatProposal(c.Signer, args)
+	signer, err := mspex.GetSigningIdentity()
+	if err != nil {
+		return nil, errors.WithMessage(err, "error getting default signer")
+	}
+	signedProp, _, _, err := c.creatProposal(signer, args)
 
 	// res, _, _, err := c.execute(cf, args)
 	// all responses will be checked when the signed transaction is created.
@@ -108,8 +124,11 @@ func (r *rPCBuilder) ChaincodeInvoke(args []string) (*pb.ProposalResponse, strin
 	// for now, just set this so we check the first response's status
 	// responses, txid, prop, err := c.execute(cf, args)
 	c := r.ChaincodeEnv
-
-	signedProp, txid, prop, err := c.creatProposal(c.Signer, args)
+	signer, err := mspex.GetSigningIdentity()
+	if err != nil {
+		return nil, "", errors.WithMessage(err, "error getting default signer")
+	}
+	signedProp, txid, prop, err := c.creatProposal(signer, args)
 	if err != nil {
 		return nil, "", err
 	}
@@ -134,7 +153,7 @@ func (r *rPCBuilder) ChaincodeInvoke(args []string) (*pb.ProposalResponse, strin
 			return proposalResp, "", nil
 		}
 		// assemble a signed transaction (it's an Envelope message) 对交易签名CreateSignedTx
-		env, err := protoutils.CreateSignedTx(prop, c.Signer, responses...)
+		env, err := protoutils.CreateSignedTx(prop, signer, responses...)
 		if err != nil {
 			return proposalResp, "", errors.WithMessage(err, "could not assemble transaction")
 		}
@@ -154,6 +173,14 @@ func (r *rPCBuilder) ChaincodeInvoke(args []string) (*pb.ProposalResponse, strin
 
 	}
 	logger.Debug("invoke get txid", txid)
+	// fmt.Println(string(proposalResp.GetPayload()))
+	// fmt.Println(proposalResp.GetTimestamp())
+	// fmt.Println(proposalResp.GetVersion())
+	// fmt.Println(proposalResp.Response.GetMessage(), "======", proposalResp.Response.GetStatus(), "======", string(proposalResp.Response.GetPayload()))
+
+	// fmt.Println(string(proposalResp.GetEndorsement().GetEndorser()))
+
+	// fmt.Println(string(proposalResp.GetEndorsement().GetSignature()))
 
 	return proposalResp, txid, nil
 }
@@ -165,6 +192,7 @@ func (c *ChaincodeEnv) creatProposal(signer fmsp.SigningIdentity, args []string)
 		spec      = c.getChaincodeSpec(args)
 	)
 
+	// r.ChaincodeEnv.Signer = signer
 	// Build the ChaincodeInvocationSpec message 创建chaincode执行描述结构，创建proposal
 	// invocation := &pb.ChaincodeInvocationSpec{ChaincodeSpec: spec}
 	creator, err := signer.Serialize()

@@ -16,11 +16,11 @@ type RPCBuilder struct {
 }
 
 func NewRpcBuilder() *RPCBuilder {
-	r := &RPCBuilder{}
-	r.OrderEnv = new(OrderEnv)
+	r := new(RPCBuilder)
 	r.ChaincodeEnv = new(ChaincodeEnv)
 	r.MspEnv = new(msp.MspEnv)
-	r.PeersEnv = new(PeersEnv)
+	r.Peers = make([]*PeerEnv, 0)
+	r.OrderEnv = new(OrderEnv)
 	return r
 }
 

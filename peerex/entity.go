@@ -4,7 +4,6 @@ import (
 	"hyperledger-fabric-sdk-go/msp"
 	"time"
 
-	fmsp "github.com/hyperledger/fabric/msp"
 	"google.golang.org/grpc"
 )
 
@@ -38,7 +37,7 @@ type ChaincodeEnv struct {
 	args          []string //方法的参数 格式:args:[]string{"a"} 代表查询a的值 跟方法名要匹配
 	ChaincodeName string   //
 	ChannelID     string   //channel 的名称
-	Signer        fmsp.SigningIdentity
+	//Signer        fmsp.SigningIdentity
 }
 
 //RPCBuilder rpc客户端公共数据
@@ -46,7 +45,9 @@ type rPCBuilder struct {
 	*ChaincodeEnv
 	*msp.MspEnv
 	*OrderEnv
-	*PeersEnv
+	// *PeersEnv
+
+	Peers []*PeerEnv
 }
 
 func (p *PeersEnv) GetPeerAddresses() []string {
