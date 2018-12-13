@@ -9,7 +9,7 @@ import (
 
 //InitViper we can set viper which fabric node is used
 func InitViper(envprefix string, filename string, configPath ...string) error {
-	viper.SetEnvPrefix(envprefix)
+	// viper.SetEnvPrefix(envprefix)
 	viper.AutomaticEnv()
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)

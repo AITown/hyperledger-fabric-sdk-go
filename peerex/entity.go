@@ -20,11 +20,11 @@ type NodeEnv struct {
 
 //OrderEnv 节点的数据
 type OrderEnv struct {
-	NodeEnv
+	*NodeEnv
 }
 
 type PeerEnv struct {
-	NodeEnv
+	*NodeEnv
 }
 
 //PeerEnv 节点的数据
@@ -33,15 +33,15 @@ type PeersEnv struct {
 }
 
 type ChaincodeEnv struct {
-	Function      string   //方法名 格式:Function :query 如果为空,但如果args的len>1 则默认是invoke  否则是query
-	args          []string //方法的参数 格式:args:[]string{"a"} 代表查询a的值 跟方法名要匹配
-	ChaincodeName string   //
-	ChannelID     string   //channel 的名称
+	Function string //方法名 格式:Function :query 如果为空,但如果args的len>1 则默认是invoke  否则是query
+	// args          []string //方法的参数 格式:args:[]string{"a"} 代表查询a的值 跟方法名要匹配
+	ChaincodeName string //
+	ChannelID     string //channel 的名称
 	//Signer        fmsp.SigningIdentity
 }
 
 //RPCBuilder rpc客户端公共数据
-type rPCBuilder struct {
+type RPCBuilder struct {
 	*ChaincodeEnv
 	*msp.MspEnv
 	*OrderEnv

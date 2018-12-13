@@ -6,10 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	//"github.com/hyperledger/fabric/peer/common"
-
-	"hyperledger-fabric-sdk-go/utils"
 )
 
 const (
@@ -56,22 +52,27 @@ const (
 	mspConfigPath = baseAddr + "peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp"
 	//bccsp/idemix 默认bccsp
 	mspType = "bccsp"
+
+	mspID2 = "Org2MSP"
+	// msp 路径
+	mspConfigPath2 = baseAddr + "peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp"
 )
 
-func init() {
-
-	peerpath := filepath.Join(os.Getenv("GOPATH"), "src/hyperledger-fabric-sdk-go")
-	if err := utils.InitViper("core", "core", "./", peerpath); err != nil {
-		fmt.Println("utils.InitViper faile:", err)
-	}
-
-	//initEnv()
-}
 func main() {
-	invoketest()
-	fmt.Println("========================= query ......==============")
+	peerpath := filepath.Join(os.Getenv("GOPATH"), "src/hyperledger-fabric-sdk-go")
+	hand, err := peerex.InitWithFile("core", peerpath, "./")
+	if err != nil {
+		fmt.Println("构建配置失败")
+		return
+	}
+	txid, _ := invoketest(hand)
 	time.Sleep(3 * time.Second)
-	querytest()
+	querytest(hand)
+	txid, _ = invoketest(hand)
+	time.Sleep(3 * time.Second)
+	querytest(hand)
+	queryTxById(hand, txid)
+	queryBlock(hand)
 
 }
 
@@ -102,32 +103,10 @@ func initEnv() {
 	os.Setenv("CORE_ORDERER_TLS_SERVERHOSTOVERRIDE", ordererTLSHostnameOverride)
 }
 
-func querytest() {
-	r := peerex.NewRpcBuilder()
-	r.Function = "query"
-	r.ChaincodeName = "mycc"
-	// r.ChaincodeVersion = "1.0"
-	r.ChannelID = "mychannel"
-
-	p := &peerex.PeerEnv{}
-
-	p.Address = peerAddress
-	p.HostnameOverride = peerTLSServerhostOverride
-
-	p.TLS = peerTLSEnabled
-	p.RootCertFile = peerTLSRootCertFile
-
-	// p.TLSClient = peerTLSClientAuthRequired
-	// p.KeyFile = peerTLSKeyFile
-	// p.CertFile = peerTLSCertFile
-
-	r.Peers = append(r.Peers, p)
-	r.MspID = mspID
-	r.MspType = mspType
-	r.MspConfigPath = mspConfigPath
-
+func querytest(hand peerex.Handle) {
+	fmt.Println("========================= query ......==============")
 	args := []string{"a"}
-	str, e := r.Query("query", args)
+	str, e := hand.Query("query", args)
 	if e != nil {
 		fmt.Println("×××××××××××××××××××××××××××")
 		fmt.Println("query error:", e)
@@ -139,50 +118,89 @@ func querytest() {
 	fmt.Println("*****************************")
 }
 
-func invoketest() {
-	r := peerex.NewRpcBuilder()
-	r.Function = "invoke"
-	r.ChaincodeName = "mycc"
-	r.ChannelID = "mychannel"
-
-	r.MspID = mspID
-	r.MspType = mspType
-	r.MspConfigPath = mspConfigPath
-
-	p1 := &peerex.PeerEnv{}
-
-	p1.Address = peerAddress
-	p1.HostnameOverride = peerTLSServerhostOverride
-
-	p1.TLS = peerTLSEnabled
-	p1.RootCertFile = peerTLSRootCertFile
-
-	p2 := &peerex.PeerEnv{}
-
-	p2.Address = peerAddress1
-	p2.HostnameOverride = peerTLSServerhostOverride1
-
-	p2.TLS = peerTLSEnabled
-	p2.RootCertFile = peerTLSRootCertFile1
-
-	r.Peers = append(r.Peers, p1, p2)
-
-	r.Address = ordererEndpoint
-	r.HostnameOverride = ordererTLSHostnameOverride
-	r.ConnTimeout = ordererConnTimeout
-
-	r.TLS = ordererTLS
-	r.RootCertFile = ordererTLSRootCertFile
+func invoketest(hand peerex.Handle) (string, error) {
 
 	args := []string{"a", "b", "1"}
-	txid, err := r.Invoke("invoke", args)
+	txid, err := hand.Invoke("invoke", args)
 	if err != nil {
 		fmt.Println("×××××××××××××××××××××××××××")
 		fmt.Println("invoke error:", err)
 		fmt.Println("×××××××××××××××××××××××××××")
-		return
+		return "", err
 	}
 	fmt.Println("*****************************")
 	fmt.Println("invoke success, txid=:", txid)
+	fmt.Println("*****************************")
+
+	return txid, nil
+
+}
+
+// 查询block 信息 利用内置的qscc 查询
+func queryBlock(hand peerex.Handle) {
+	fmt.Println("========================= queryBlock ......==============")
+	//peer chaincode query -C mychannel -n qscc -c '{"Args":["GetChainInfo","mychannel"]}'
+	str, e := hand.GetChainInfo()
+	if e != nil {
+		fmt.Println("×××××××××××××××××××××××××××")
+		fmt.Println("GetChainInfo error:", e)
+		fmt.Println("×××××××××××××××××××××××××××")
+		return
+	}
+	fmt.Println("*****************************")
+	fmt.Println("GetChainInfo success,result:", str)
+	fmt.Println("*****************************")
+	queryBlockHeight(hand)
+}
+
+// 查询block 信息 利用内置的qscc 查询
+func queryBlockHeight(hand peerex.Handle) {
+	fmt.Println("========================= queryBlockHeight ......==============")
+	//peer chaincode query -C mychannel -n qscc -c '{"Args":["GetChainInfo","mychannel"]}'
+	h, e := hand.GetBlcokHeight()
+	if e != nil {
+		fmt.Println("×××××××××××××××××××××××××××")
+		fmt.Println("GetChainInfo error:", e)
+		fmt.Println("×××××××××××××××××××××××××××")
+		return
+	}
+	fmt.Println("*****************************")
+	fmt.Println("GetChainInfo success,result:", h)
+	fmt.Println("*****************************")
+
+	queryBlockByNumber(hand, h)
+}
+
+// 查询block 信息 利用内置的qscc 查询
+func queryTxById(hand peerex.Handle, id string) {
+	//"158b0cd7ddcfc5ebf90cfe40b3c37a5e4cc7ef77b46b5efcb8d72ea677d511cc"
+	fmt.Println("========================= queryTxById ......==============")
+	//peer chaincode query -C mychannel -n qscc -c '{"Args":["GetChainInfo","mychannel"]}'
+	str, e := hand.GetTransactionByID(id)
+	if e != nil {
+		fmt.Println("×××××××××××××××××××××××××××")
+		fmt.Println("GetTransactionByID error:", e)
+		fmt.Println("×××××××××××××××××××××××××××")
+		return
+	}
+	fmt.Println("*****************************")
+	fmt.Println("GetTransactionByID success,result:", str)
+	fmt.Println("*****************************")
+}
+
+func queryBlockByNumber(hand peerex.Handle, h int64) {
+	fmt.Println("========================= queryBlockByNumber ......==============")
+	if h >= 1 {
+		h = h - 1
+	}
+	str, e := hand.GetBlockByNumber(h)
+	if e != nil {
+		fmt.Println("×××××××××××××××××××××××××××")
+		fmt.Println("GetBlockByNumber error:", e)
+		fmt.Println("×××××××××××××××××××××××××××")
+		return
+	}
+	fmt.Println("*****************************")
+	fmt.Println("GetBlockByNumber success,result:", str)
 	fmt.Println("*****************************")
 }

@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 	mspex "hyperledger-fabric-sdk-go/msp"
-	"hyperledger-fabric-sdk-go/utils"
 
 	fmsp "github.com/hyperledger/fabric/msp"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	protoutils "github.com/hyperledger/fabric/protos/utils"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -21,51 +19,35 @@ const (
 	errorStatus = 400
 )
 
-// 该日志 来自fabric_1.2 ，现在是输出到终端。需要添加输出到文件的
-var logger = utils.MustGetLogger(logsymbol)
-
-func initLog() {
-	l := viper.GetString("logging.level")
-	utils.SetModuleLevel("^"+logsymbol, l)
-	format := viper.GetString("logging.format")
-	utils.SetFormat(format)
-}
-
 //Query 查询  格式: args:[]string{"a"} 代表查询a的值 跟方法名要匹配
-func (r *rPCBuilder) Query(args []string) (string, error) {
-	initLog()
-	r.args = args
+func (r *RPCBuilder) Query(args []string) (*pb.Response, error) {
+
+	// r.args = args
 	err := r.Verify(true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	// r.InitConfig()
 
 	err = r.InitConn(false)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	err = InitCrypto(r.MspEnv)
-	if err != nil {
-		return "", err
-	}
-	// signer, err := mspex.GetSigningIdentity()
+	// err = InitCrypto(r.MspEnv)
 	// if err != nil {
-	// 	return "", errors.WithMessage(err, "error getting default signer")
+	// 	return nil, err
 	// }
-	//r.ChaincodeEnv.Signer = signer
+
 	pb, err := r.ChaincodeQuery(args)
 	if err != nil {
-		return "", nil
+		return nil, err
 	}
-	return string(pb.Response.Payload), nil
-	// return r.ChaincodeEnv.Query(cf, args)
+
+	return pb.Response, nil
 }
 
-func (r *rPCBuilder) Invoke(args []string) (string, error) {
-	initLog()
-	r.args = args
+func (r *RPCBuilder) Invoke(args []string) (string, error) {
+
+	// r.args = args
 	if err := r.Verify(false); err != nil {
 		return "", err
 	}
@@ -77,10 +59,10 @@ func (r *rPCBuilder) Invoke(args []string) (string, error) {
 		return "", err
 	}
 
-	err = InitCrypto(r.MspEnv)
-	if err != nil {
-		return "", err
-	}
+	// err = InitCrypto(r.MspEnv)
+	// if err != nil {
+	// 	return "", err
+	// }
 
 	// defer cf.BroadcastClient.Close()
 
@@ -92,7 +74,7 @@ func (r *rPCBuilder) Invoke(args []string) (string, error) {
 	// return r.ChaincodeEnv.Invoke(cf, args)
 }
 
-func (r *rPCBuilder) ChaincodeQuery(args []string) (*pb.ProposalResponse, error) {
+func (r *RPCBuilder) ChaincodeQuery(args []string) (*pb.ProposalResponse, error) {
 	peer := r.Peers[0]
 	c := r.ChaincodeEnv
 	signer, err := mspex.GetSigningIdentity()
@@ -119,7 +101,7 @@ func (r *rPCBuilder) ChaincodeQuery(args []string) (*pb.ProposalResponse, error)
 	return proposalResp, nil
 }
 
-func (r *rPCBuilder) ChaincodeInvoke(args []string) (*pb.ProposalResponse, string, error) {
+func (r *RPCBuilder) ChaincodeInvoke(args []string) (*pb.ProposalResponse, string, error) {
 	// all responses will be checked when the signed transaction is created.
 	// for now, just set this so we check the first response's status
 	// responses, txid, prop, err := c.execute(cf, args)

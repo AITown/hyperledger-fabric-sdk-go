@@ -1,74 +1,43 @@
 logging:
   level: debug
   format: "%{color}%{time:2006-01-02 15:04:05.000} [%{module}] %{shortfile} -> %{level:.4s} %{color:reset} %{message}"
-peer:
+
+    
+chaincode: mycc
+channel: mychannel
+
+peers:
+  - peer0
+  - peer1
+
+peer0:
   address: 0.0.0.0:7051
   serverhostoverride: peer0.org1.example.com
-  client:
-    conntimeout: 30s
-  tls:
-    enabled: true
-    clientAuthRequired: false
+  conntimeout: 30s
+  tls: true
+  rootcert: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+
+peer1:
+  address: 0.0.0.0:9051
+  serverhostoverride: peer0.org2.example.com
+  conntimeout: 30s
+  tls: true
     #如果enabled 为true 则需要提供rootcert.file的值 根ca证书
-    rootcert:
-      file: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
-    #如果clientAuthRequired true 则需要clientKey clientCert 的file值,如果这两个值为空 则取key cert的file值
-    clientKey:
-      file: #/home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key
-    clientCert:
-      file:  #/home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt
-    #tls 证书
-    cert:
-      file: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt
-    #tls 密钥
-    key:
-      file: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key
+  rootcert: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt
     
-    #msp名称
+# 配置peers 节点的第一个peer的msp
+msp:
+   #msp名称
   localMspId: Org1MSP
   # msp 路径
   mspConfigPath: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
   # bccsp/idemix 默认bccsp
   localMspType: bccsp
-  BCCSP: 
-    #默认软件加密
-    Default: SW
-    #软件加密
-    SW:
-      Hash: SHA2
-      Security: 256
-      FileKeyStore:
-        # 如果为空将使用 mspConfigPath/keystore 
-        KeyStore: #/home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/keystore
-    #硬件加密
-    PKCS11:
-      Library:
-      Label:
-      Pin:
-      Hash:
-      Security:
-      FileKeyStore:
-        KeyStore:
 
 orderer:
   address: 0.0.0.0:7050
   serverhostoverride: orderer.example.com
-  client:
-    conntimeout: 3s
-  tls:
-    enabled: true
-    clientAuthRequired: false
-    rootcert:
-      file: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
-    cert:
-      file: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tls/server.crt
-    #tls 密钥
-    key:
-      file: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tls/server.key
-    #如果clientAuthRequired true 则需要clientKey clientCert 的file值,如果这两个值为空 则取key cert的file值
-    clientKey:
-      file:
-    clientCert:
-      file:
+  conntimeout: 3s
+  tls: true
+  rootcert: /home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
     
-

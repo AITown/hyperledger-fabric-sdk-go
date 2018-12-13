@@ -52,7 +52,7 @@ const (
 )
 
 //Verify 检查参数正确性 没有的构建默认值
-func (r *rPCBuilder) Verify(get bool) error {
+func (r *RPCBuilder) Verify(get bool) error {
 	if r.ChannelID == "" {
 		return errors.New("channelID 不能为空")
 	}
@@ -61,18 +61,8 @@ func (r *rPCBuilder) Verify(get bool) error {
 		return errors.New("ChaincodeName 不能为空")
 	}
 
-	//格式:Function :query args:[]string{"a"} 代表查询a的值  如果为空,根据参数get 赋值
-	if len(r.args) == 0 {
-		return errors.Errorf("%s方法所携带的参数不能为空", r.Function)
-	}
 	if r.Function == "" {
-		if get {
-			r.Function = query
-			logger.Warning("Using default Function:", query)
-		} else {
-			r.Function = invoke
-			logger.Warning("Using default Function:", invoke)
-		}
+		logger.Warning("function name is null")
 	}
 
 	if len(r.Peers) == 0 {
@@ -80,7 +70,7 @@ func (r *rPCBuilder) Verify(get bool) error {
 	}
 	if get {
 		if len(r.Peers) > 1 {
-			return errors.New("query 目前只支持单节点")
+			logger.Warning("query 目前只支持单节点，取第一组数据")
 		}
 	} else {
 		r.OrderEnv.verify()
@@ -116,9 +106,6 @@ func (node *NodeEnv) verify() error {
 }
 
 func InitCrypto(m *mspex.MspEnv) error {
-	// var mspMgrConfigDir = common.GetPath(peerMspConfigPath)
-	// var mspID = viper.GetString(peerLocalMspID)
-	// var mspType = viper.GetString(peerLocalMspType)
 	if m == nil {
 		return errors.New("MspEnv is null")
 	}
@@ -137,59 +124,24 @@ func InitCrypto(m *mspex.MspEnv) error {
 	return err
 }
 
-//InitWithFile InitWithFile  未实现
-func InitWithFile(path string) Handle {
-	// peerpath := filepath.Join(os.Getenv("GOPATH"), "src/hyperledger-fabric-sdk-go")
-	// if err := utils.InitViper("core", "core", "./", peerpath); err != nil {
-	// 	fmt.Println("utils.InitPeerViper faile:", err)
-	// }
-	r := NewRpcBuilder()
-	// p := &OnePeer{}
-
-	// p.PeerClientConnTimeout = viper.GetDuration(peerClientconntimeout)
-
-	// p.PeerTLS = viper.GetBool(peerTLSEnabled)
-	// p.PeerTLSClientAuthRequired = viper.GetBool(peerTLSClientAuthRequired)
-	// p.PeerTLSCertFile = viper.GetString(peerTLSCertFile)
-	// p.PeerTLSKeyFile = viper.GetString(peerTLSKeyFile)
-	// p.PeerTLSClientCertFile = viper.GetString(peerTLSClientCertFile)
-	// p.PeerTLSClientKeyFile = viper.GetString(peerTLSClientKeyFile)
-
-	// r.Peers = append(r.Peers, p)
-	// //msp
-	// r.MspID = viper.GetString(peerLocalMspID)
-	// r.MspConfigPath = viper.GetString(peerMspConfigPath)
-	// r.MspType = viper.GetString(peerLocalMspType)
-
-	// //order
-	// r.OrdererConnTimeout = viper.GetDuration(ordererConnTimeout)
-	// r.OrdererTLS = viper.GetBool(ordererTLS)
-	// r.OrdererTLSClientAuthRequired = viper.GetBool(ordererTLSClientAuthRequired)
-	// r.OrdererAddress = viper.GetString(ordererEndpoint)
-	// r.OrdererTLSHostnameOverride = viper.GetString(ordererTLSHostnameOverride)
-	// r.OrdererTLSClientCertFile = viper.GetString(ordererTLSClientCertFile)
-	// r.OrdererTLSClientKeyFile = viper.GetString(ordererTLSClientKeyFile)
-	// r.OrdererTLSRootCertFile = viper.GetString(ordererTLSRootCertFile)
-
-	return r
-
-}
-
 //InitFactory 初始化chaincode命令工厂
-func (r *rPCBuilder) InitConn(isOrdererRequired bool) error {
+func (r *RPCBuilder) InitConn(isOrdererRequired bool) error {
 
 	logger.Debug("========InitConn start:============")
-	// for _, peer := range r.Peers {
-	//error getting endorser client for query: endorser client failed to connect to
-	//path: failed to create new connection: context deadline exceeded
-	// logger.Debug("common.GetEndorserClientFnc override:", node.HostnameOverride)
-	// signer, err := mspex.GetSigningIdentity()
-	// if err != nil {
-	// 	return errors.WithMessage(err, "error getting default signer")
-	// }
-	// r.ChaincodeEnv.Signer = signer
+	var count = 1
 
-	for i := 0; i < len(r.Peers); i++ {
+	if isOrdererRequired {
+		count = len(r.Peers)
+		err := r.OrderEnv.ClientConn()
+		if err != nil {
+			return err
+		}
+		logger.Debug("----order grpc conn----")
+	} else {
+		count = 1
+	}
+
+	for i := 0; i < count; i++ {
 		err := r.Peers[i].ClientConn()
 		if err != nil {
 			logger.Debugf("----peer[%d] grpc conn err----", err)
@@ -197,15 +149,6 @@ func (r *rPCBuilder) InitConn(isOrdererRequired bool) error {
 		}
 
 		logger.Debugf("----peer[%d] grpc conn----", i)
-	}
-
-	if isOrdererRequired {
-
-		err := r.OrderEnv.ClientConn()
-		if err != nil {
-			return err
-		}
-		logger.Debug("----order grpc conn----")
 	}
 	return nil
 }
