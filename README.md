@@ -1,11 +1,11 @@
 #### hyperledger-fabirc-go-sdk
 
 
-+ 目前只有invoke 、query功能
++ 目前只有invoke 、query以及查询区块等功能
 + 利用fabric的cli代码改造的
 + 可用于1.2版本网络,其他的没有测试过
 + client.go 是代码示例
-+ core.yaml是配置文件 是配置文件，不过目前只有日志级别，输出 读取了配置文件
++ core.yaml是配置文件 是配置文件
   
 
 
@@ -16,4 +16,4 @@
    + 一开始初始化msp 密钥信息
    + 创建peer orderer节点的grpc 连接
    + invoke、query 操作
-   + invoke 操作完，可选是否需要各个peer节点回执（1.2.X版本后移除）
+  
