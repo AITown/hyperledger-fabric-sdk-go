@@ -11,8 +11,13 @@ func TestInitCrypto(t *testing.T) {
 	dir := "/home/gjf/hyperledger-fabric/fabric-samples/first-network/crypto-config/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp"
 	id := "Org1MSP"
 	ty := "bccsp"
+	msp := &MspEnv{
+		id,
+		dir,
+		ty,
+	}
 
-	b, err := InitCrypto(dir, id, ty)
+	b, err := msp.InitCrypto()
 	if err != nil {
 		t.Fatal("err", err)
 	}
