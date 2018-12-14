@@ -5,6 +5,8 @@ import (
 	"hyperledger-fabric-sdk-go/peerex"
 	"os"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"time"
 )
 
@@ -59,50 +61,65 @@ const (
 )
 
 func main() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		testfabric()
+		wg.Done()
+	}()
+	wg.Wait()
+}
+
+func testfabric() {
 	peerpath := filepath.Join(os.Getenv("GOPATH"), "src/hyperledger-fabric-sdk-go")
 	hand, err := peerex.InitWithFile("core", peerpath, "./")
 	if err != nil {
 		fmt.Println("构建配置失败")
 		return
 	}
+	querytest(hand)
 	txid, _ := invoketest(hand)
+	//此处的时间间隔参考fabric的区块生成时间，否则多次同比交易只有一个有效
 	time.Sleep(3 * time.Second)
+	txid, _ = invoketest(hand)
+	time.Sleep(3 * time.Second)
+	txid, _ = invoketest(hand)
+
+	wait := make(chan bool)
+	go waitFunc(wait)
+	<-wait
 	querytest(hand)
 	txid, _ = invoketest(hand)
 	time.Sleep(3 * time.Second)
+	txid, _ = invoketest(hand)
+
+	go waitFunc(wait)
+	<-wait
+
 	querytest(hand)
 	queryTxById(hand, txid)
 	queryBlock(hand)
 
+	querytest(hand)
 }
+func waitFunc(wait chan bool) {
+	//此处的时间间隔参考fabric的区块生成时间，否则查询的结果不会变化
+	fmt.Println("将会在10 s 后执行查询操作")
+	index := 10
+	wait1 := time.After(time.Second * 10)
+	for {
+		select {
+		case <-time.After(time.Second):
+			index--
+			fmt.Print(strconv.Itoa(index) + " ")
+		case <-wait1:
+			fmt.Println("\n10 s is comming")
+			wait <- true
+			return
+		}
+	}
 
-func initEnv() {
-	// fmt.Println("viper.ConfigFileUsed:", filepath.Dir(viper.ConfigFileUsed()))
-	os.Setenv("CORE_PEER_ADDRESS", peerAddress)
-	os.Setenv("CORE_PEER_CLIENT_CONNTIMEOUT", peerClientconntimeout)
-	os.Setenv("CORE_PEER_TLS_ENABLED", "true")
-	os.Setenv("CORE_PEER_TLS_CLIENTAUTHREQUIRED", "false")
-	os.Setenv("CORE_PEER_TLS_ROOTCERT_FILE", peerTLSRootCertFile)
-	os.Setenv("CORE_PEER_TLS_CLIENTKEY_FILE", peerTLSClientKeyFile)
-	os.Setenv("CORE_PEER_TLS_CLIENTCERT_FILE", peerTLSClientCertFile)
-	os.Setenv("CORE_LOGGING_LEVEL", "INFO")
-	os.Setenv("CORE_PEER_LOCALMSPID", peerLocalMspID)
-	os.Setenv("CORE_PEER_TLS_CERT_FILE", peerTLSCertFile)
-	os.Setenv("CORE_PEER_TLS_KEY_FILE", peerTLSKeyFile)
-	os.Setenv("CORE_PEER_MSPCONFIGPATH", peerMspConfigPath)
-	os.Setenv("CORE_PEER_BCCSP_SW_FILEKEYSTORE_KEYSTORE", peerBccspSwFileKeyStoreKeyStore)
-	//os.Setenv("CORE_PEER_TLS_SERVERHOSTOVERRIDE", peerTLSServerhostOverride)
-
-	os.Setenv("CORE_ORDERER_ADDRESS", ordererEndpoint)
-	os.Setenv("CORE_ORDERER_TLS_ENABLED", "true")
-	os.Setenv("CORE_ORDERER_CLIENT_CONNTIMEOUT", "3s")
-	os.Setenv("CORE_ORDERER_TLS_CLIENTAUTHREQUIRED", "false")
-	os.Setenv("CORE_ORDERER_TLS_ROOTCERT_FILE", ordererTLSRootCertFile)
-	os.Setenv("CORE_ORDERER_TLS_CLIENTKEY_FILE", ordererTLSClientKeyFile)
-	os.Setenv("CORE_ORDERER_TLS_CLIENTCERT_FILE", ordererTLSClientCertFile)
-	os.Setenv("CORE_ORDERER_TLS_SERVERHOSTOVERRIDE", ordererTLSHostnameOverride)
 }
-
 func querytest(hand peerex.Handle) {
 	fmt.Println("========================= query ......==============")
 	args := []string{"a"}
